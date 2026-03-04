@@ -1,0 +1,5499 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "losevfft",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -6176,
+        1408
+      ],
+      "id": "113993f2-1f8a-4e2e-b799-57cc5a32341d",
+      "name": "Webhook",
+      "webhookId": "7bf607bd-e053-4a33-8fca-4c190f8a3b56"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fa32a2e9-c958-40da-be97-53cf59647885",
+              "leftValue": "={{ $json.body?.token || $json.headers?.['x-webhook-token'] || '' }}",
+              "rightValue": "82c1d601fcc0371bb17cbc69942fccc0",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5776,
+        1472
+      ],
+      "id": "56383872-0f98-46aa-a230-6a53ae17ec11",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"forbidden\" }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5536,
+        1488
+      ],
+      "id": "f1a81dcd-417f-4dcf-b208-ec53ed575676",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "url": "={{ $node[\"Prepare context\"].json.photo_url }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -4368,
+        1328
+      ],
+      "id": "dcbbdda3-922c-4e85-827d-d6275ff18ccc",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "text": "Ты анализируешь фото еды. Верни ТОЛЬКО JSON (без текста вокруг), строго по схеме:\n\n{\n  \"items\": [{\"name\": string, \"grams\": number}],\n  \"totals\": {\"calories\": number, \"protein_g\": number, \"fat_g\": number, \"carbs_g\": number},\n  \"confidence\": number,\n  \"notes\": string\n}\n\nПравила:\n- Если не уверен — confidence снижай.\n- Граммовки оценивай по визуальной порции.\n- Используй подпись пользователя (если есть): {{$node[\"Prepare context\"].json.caption}}\n- Не добавляй лишних полей.\n- Названия продуктов пиши по-русски.",
+        "inputType": "base64",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -4192,
+        1328
+      ],
+      "id": "0ebdfcb1-3ff2-4c2c-9797-c63d9c6d3521",
+      "name": "Analyze image",
+      "credentials": {
+        "openAiApi": {
+          "id": "OyH14ydHVCpHI4iR",
+          "name": "ИИ КПТ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// src — результат парсера (Code in JavaScript2)\nconst src = $input.first().json;\n\n// ctx — контекст (user+дата+ключи)\nconst ctx = $node[\"Attach tz + local_date\"].json;\n\n// Если парсер не смог — просим уточнить, но всё равно можем записать как черновик\nif (src.ok === false) {\n  return [{\n    response_types: [\"ask_clarify\", \"meal_saved\"],\n    numbers: { calories: 0, protein: 0, fat: 0, carbs: 0, confidence: 0 },\n    items: [],\n    meta: {\n      ...ctx\n    },\n    raw_ai_json: src\n  }];\n}\n\nconst totals = src.totals || {};\nconst cal = Number(totals.calories || 0);\nconst p = Number(totals.protein_g || 0);\nconst f = Number(totals.fat_g || 0);\nconst c = Number(totals.carbs_g || 0);\nconst confidence = Number(src.confidence || 0);\n\nlet types = [\"calories_summary\"];\n\nconst itemsText = (src.items ?? [])\n  .map(i => String(i?.name ?? \"\").toLowerCase())\n  .join(\" \");\n\nconst hasVeg = /(салат|огурц|помидор|овощ|зелень|брокколи|капуст|морков|перец)/i.test(itemsText);\n\nif (confidence < 0.55) {\n  types.push(\"ask_clarify\");\n} else {\n  if (p < 20) types.push(\"missing_protein\");\n  if (f < 10) types.push(\"missing_healthy_fats\");\n  if (!hasVeg) types.push(\"missing_veg\");\n  if (cal > 900) types.push(\"too_large_portion\");\n}\n\ntypes.push(\"meal_saved\");\n\nreturn [{\n  response_types: types,\n  numbers: { calories: cal, protein: p, fat: f, carbs: c, confidence },\n  items: src.items || [],\n  meta: {\n    ...ctx\n  },\n  raw_ai_json: src\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3808,
+        1328
+      ],
+      "id": "dea646bf-e43e-4748-a9c5-bb072b7385b7",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "const meal = $node[\"Code in JavaScript\"].json;\nconst daily = $node[\"Calc Daily Upsert\"].json.daily_row;\nconst rem = $node[\"Calc Daily Upsert\"].json.remaining;\n\nconst types = meal.response_types || [];\nconst n = meal.numbers || {};\n\nconst bank = {\n  calories_summary: [\n    \"Итого примерно: {{calories}} ккал (Б {{protein}} г / Ж {{fat}} г / У {{carbs}} г).\"\n  ],\n  missing_protein: [\n    \"Похоже, не хватает белка. Добавь: творог/йогурт без сахара, яйца, рыбу или порцию мяса.\"\n  ],\n  missing_healthy_fats: [\n    \"Мало полезных жиров. Можно добавить: орехи, авокадо, оливковое масло, жирную рыбу.\"\n  ],\n  missing_veg: [\n    \"Почти нет овощей/клетчатки. Добавь салат или овощи (свежие/на пару).\"\n  ],\n  too_large_portion: [\n    \"Порция выглядит довольно большой по калориям. Если цель — контроль веса, можно уменьшить порцию или часть углеводов.\"\n  ],\n  ask_clarify: [\n    \"Я не уверен(а) по фото. Напиши, пожалуйста, что именно в тарелке и примерный объём (например: 200 г гречки, 2 котлеты).\"\n  ],\n  meal_saved: [\n    \"✅ Записал(а) приём пищи в дневник.\"\n  ]\n};\n\nfunction pick(arr){ return arr[Math.floor(Math.random() * arr.length)]; }\n\nlet parts = [];\nfor (const t of types) if (bank[t]) parts.push(pick(bank[t]));\n\n// короткий текст для webapp (ТОЛЬКО про блюдо)\nlet webapp_text = parts.join(\"\\n\\n\")\n  .replaceAll(\"{{calories}}\", String(n.calories ?? 0))\n  .replaceAll(\"{{protein}}\", String(n.protein ?? 0))\n  .replaceAll(\"{{fat}}\", String(n.fat ?? 0))\n  .replaceAll(\"{{carbs}}\", String(n.carbs ?? 0));\n\n// полный текст для TG (с дневной сводкой)\nlet text = webapp_text;\n\ntext +=\n`\\n\\n📌 Сегодня (МСК): ${daily.consumed_calories}/${daily.target_calories} ккал\nБ ${daily.consumed_protein_g}/${daily.target_protein_g} • Ж ${daily.consumed_fat_g}/${daily.target_fat_g} • У ${daily.consumed_carbs_g}/${daily.target_carbs_g}\nОсталось: ${rem.calories} ккал (Б ${rem.protein_g}, Ж ${rem.fat_g}, У ${rem.carbs_g})\nКачество дня: ${daily.score}/100`;\n\nreturn [{ text, webapp_text }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2576,
+        1328
+      ],
+      "id": "6740910f-f5c7-4498-9ed2-c43be7589597",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Универсальный парсер ответа OpenAI-ноды (Analyze image / Analyze text)\nconst root = $json?.[\"0\"] ?? $json?.[0] ?? $json;\n\n// В n8n OpenAI node часто кладёт результат сюда:\nconst out0 = root?.output?.[0] ?? root;\nconst c0 = out0?.content?.[0];\n\n// 1) Если нода уже вернула готовую структуру {items, totals} — пропускаем\nif (root && root.items && root.totals) {\n  return [{\n    json: {\n      ok: true,\n      items: root.items || [],\n      totals: {\n        calories: Number(root.totals?.calories ?? 0),\n        protein_g: Number(root.totals?.protein_g ?? 0),\n        fat_g: Number(root.totals?.fat_g ?? 0),\n        carbs_g: Number(root.totals?.carbs_g ?? 0),\n      },\n      confidence: Number(root.confidence ?? 0),\n      notes: String(root.notes ?? \"\")\n    }\n  }];\n}\n\n// 2) Достаём текст ответа (главное исправление: logprobs.text)\nconst text =\n  c0?.text ??\n  c0?.logprobs?.text ??\n  out0?.text ??\n  root?.text ??\n  c0?.message?.content ??\n  out0?.message?.content ??\n  root?.message?.content ??\n  root?.choices?.[0]?.message?.content ??\n  root?.choices?.[0]?.text;\n\nif (!text) {\n  return [{ json: { ok: false, err: \"No text from OpenAI\", raw: root } }];\n}\n\n// 3) Чистим ```json ... ```\nconst cleaned = String(text)\n  .trim()\n  .replace(/^```(?:json)?/i, \"\")\n  .replace(/```$/i, \"\")\n  .trim();\n\nlet parsed;\ntry {\n  parsed = JSON.parse(cleaned);\n} catch (e) {\n  return [{ json: { ok: false, err: \"JSON parse error\", raw: cleaned } }];\n}\n\nconst totals = parsed.totals || {};\n\nreturn [{\n  json: {\n    ok: true,\n    items: parsed.items || [],\n    totals: {\n      calories: Number(totals.calories ?? 0),\n      protein_g: Number(totals.protein_g ?? 0),\n      fat_g: Number(totals.fat_g ?? 0),\n      carbs_g: Number(totals.carbs_g ?? 0),\n    },\n    confidence: Number(parsed.confidence ?? 0),\n    notes: String(parsed.notes ?? \"\")\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4016,
+        1328
+      ],
+      "id": "54e2c2b9-69e6-40b4-a1c3-98c9785643dd",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Prepare context\"].json.chat_id }}",
+        "text": "={{ $json.last_meal_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -1952,
+        1328
+      ],
+      "id": "ed6d2730-4de9-4e8e-97b4-d09074206eea",
+      "name": "Send a text message",
+      "webhookId": "c2e6ee75-3edf-4bf8-b380-87c21f8bdca2",
+      "credentials": {
+        "telegramApi": {
+          "id": "Dc4ZGpb5v2VWtmas",
+          "name": "LosevSekret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"accepted\" }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5552,
+        1312
+      ],
+      "id": "7ed8cf9b-7059-497b-8d9e-922588045c95",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $node[\"Webhook\"].json.body || {};\n\nconst external_user_id = String(b.external_user_id || \"\").trim();\nconst chat_id = String(b.chat_id || external_user_id).trim();\nconst message_id = String(b.message_id || \"\").trim();\n\nif (!external_user_id) throw new Error(\"external_user_id required\");\nif (!message_id) throw new Error(\"message_id required\");\n\nconst meal_key = `${external_user_id}:${message_id}`;\n\n// фото\nconst photo_url = String(b.photo_url || b.photo?.url || \"\");\nconst telegram_file_id = String(b.telegram_file_id || b.photo?.file_id || \"\");\n\nreturn [{\n  external_user_id,\n  chat_id,\n  message_id,\n  meal_key,\n  meal_id: meal_key, // чтобы не городить uuid\n  meal_type: String(b.meal_type || \"unknown\"),\n  caption: String(b.caption || \"\"),\n  photo_url,\n  telegram_file_id,\n  created_at_iso: new Date().toISOString()\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5392,
+        1312
+      ],
+      "id": "70f7e82d-39ab-4e7f-ad27-1f22f5e8b7ba",
+      "name": "Prepare context"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 135524460,
+          "mode": "list",
+          "cachedResultName": "Users",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=135524460"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "key",
+              "lookupValue": "={{ String($node[\"Prepare context\"].json.external_user_id) }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5232,
+        1312
+      ],
+      "id": "a44e2659-8e93-4570-b4e2-b65a418b069a",
+      "name": "GS Lookup Users",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prepared = $node[\"Prepare context\"].json;   // исходные данные из webhook\nconst user = $node[\"GS Lookup Users\"].json || {}; // данные из таблицы Users\n\nconst tz = String(user.timezone || \"Europe/Moscow\");\n\nconst fmt = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: tz,\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\"\n});\n\nconst local_date = fmt.format(new Date());\nconst daily_key = `${prepared.external_user_id}:${local_date}`;\n\nreturn [{\n  // сначала данные из сообщения\n  ...prepared,\n\n  // потом добавляем/переопределяем данные профиля\n  timezone: tz,\n  local_date,\n  daily_key,\n\n  targets: {\n    target_calories: Number(user.target_calories || 0),\n    target_protein_g: Number(user.target_protein_g || 0),\n    target_fat_g: Number(user.target_fat_g || 0),\n    target_carbs_g: Number(user.target_carbs_g || 0),\n  },\n\n  // при необходимости оставим часть полей из Users\n  user_row_number: user.row_number || user.rowNumber || \"\",\n  sex: user.sex || \"\",\n  age: user.age || \"\",\n  height_cm: user.height_cm || \"\",\n  weight_kg: user.weight_kg || \"\",\n  activity_level: user.activity_level || \"\",\n  goal: user.goal || \"\"\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5072,
+        1312
+      ],
+      "id": "a06be1e4-a842-4345-b1a3-24168bf5269f",
+      "name": "Attach tz + local_date"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 639392029,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=639392029"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "key",
+              "lookupValue": "={{ $json.meal_key }}"
+            }
+          ]
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "detectAutomatically"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -4912,
+        1312
+      ],
+      "id": "b097a474-8e0e-4320-81fa-8538c15c54cd",
+      "name": "Lookup Meals",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "56e4ff7c-d284-4b2c-916e-2a4a6d95674f",
+              "leftValue": "={{ $json.rowNumber }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4752,
+        1312
+      ],
+      "id": "d9f4179c-f408-494f-92bf-3df092f02426",
+      "name": "IF Meal exists"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Prepare context\"].json.chat_id }}",
+        "text": "Этот приём уже записан ✅",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -4544,
+        1216
+      ],
+      "id": "7bded5d3-a838-4bf1-b408-59dc2ebc0e72",
+      "name": "TG Already saved",
+      "webhookId": "1a67b9aa-28bc-438b-88fa-d9922d807194",
+      "credentials": {
+        "telegramApi": {
+          "id": "Dc4ZGpb5v2VWtmas",
+          "name": "LosevSekret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c47eb3f9-e016-4a8a-a796-e01c41880981",
+              "leftValue": "={{ $node[\"Prepare context\"].json.photo_url }}",
+              "rightValue": "None",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4544,
+        1408
+      ],
+      "id": "87471567-30b1-43b1-93e1-cb1f41c5c467",
+      "name": "IF Has photo_url"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 639392029,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=639392029"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "key": "={{ $json.meta.meal_key }}",
+            "meal_id": "={{ $json.meta.meal_id }}",
+            "external_user_id": "={{ $json.meta.external_user_id }}",
+            "chat_id": "={{ $json.meta.chat_id }}",
+            "raw_ai_json": "={{ JSON.stringify($json.raw_ai_json || {}) }}",
+            "carbs_g": "={{ $json.numbers.carbs }}",
+            "fat_g": "={{ $json.numbers.fat }}",
+            "protein_g": "={{ $json.numbers.protein }}",
+            "calories": "={{ $json.numbers.calories }}",
+            "confidence": "={{ $json.numbers.confidence }}",
+            "telegram_file_id": "={{ $json.meta.telegram_file_id }}",
+            "photo_url": "={{ $json.meta.photo_url }}",
+            "caption": "={{ $json.meta.caption }}",
+            "meal_type": "={{ $json.meta.meal_type }}",
+            "local_date": "={{ $json.meta.local_date }}",
+            "created_at_iso": "={{ $json.meta.created_at_iso }}",
+            "message_id": "={{ $json.meta.message_id }}",
+            "items_json": "={{ JSON.stringify($json.items || []) }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "key",
+              "displayName": "key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "meal_id",
+              "displayName": "meal_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "external_user_id",
+              "displayName": "external_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_id",
+              "displayName": "message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at_iso",
+              "displayName": "created_at_iso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "local_date",
+              "displayName": "local_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "meal_type",
+              "displayName": "meal_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "caption",
+              "displayName": "caption",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "photo_url",
+              "displayName": "photo_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "telegram_file_id",
+              "displayName": "telegram_file_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confidence",
+              "displayName": "confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "calories",
+              "displayName": "calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "protein_g",
+              "displayName": "protein_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fat_g",
+              "displayName": "fat_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "carbs_g",
+              "displayName": "carbs_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "items_json",
+              "displayName": "items_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "raw_ai_json",
+              "displayName": "raw_ai_json",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -3600,
+        1328
+      ],
+      "id": "123f49a5-17d9-460d-8e2f-216a08785b7b",
+      "name": "GS Append Meal",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1239696434,
+          "mode": "list",
+          "cachedResultName": "Daily",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=1239696434"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "key",
+              "lookupValue": "={{ String($('Code in JavaScript').item.json.meta.daily_key) }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -3408,
+        1328
+      ],
+      "id": "0cf48fed-093b-4fc8-9202-d2791ee70099",
+      "name": "GS Lookup Daily",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// === PATCH: Calc Daily Upsert (замени ВЕСЬ код ноды на этот) ===\nconst meal = $node[\"Code in JavaScript\"].json;          // numbers + meta\nconst existing = $node[\"GS Lookup Daily\"].json || {};   // строка Daily (если была)\n\n// 1) Надёжно определяем, есть ли уже Daily-строка\nconst hasExisting = String(existing.key || \"\") === String(meal.meta?.daily_key || \"\");\n\n// 2) Берём targets + numbers\nconst t = meal.meta?.targets || {};\nconst m = meal.numbers || {};\n\n// 3) Старые суммы\nconst oldC = hasExisting ? Number(existing.consumed_calories || 0) : 0;\nconst oldP = hasExisting ? Number(existing.consumed_protein_g || 0) : 0;\nconst oldF = hasExisting ? Number(existing.consumed_fat_g || 0) : 0;\nconst oldCarb = hasExisting ? Number(existing.consumed_carbs_g || 0) : 0;\nconst oldN = hasExisting ? Number(existing.meals_count || 0) : 0;\n\n// 4) Новые суммы (всегда суммируем)\nconst newC = oldC + Number(m.calories || 0);\nconst newP = oldP + Number(m.protein || 0);\nconst newF = oldF + Number(m.fat || 0);\nconst newCarb = oldCarb + Number(m.carbs || 0);\n\n// 5) Meals count: считаем приём только если это валидный meal\n// (если count_as_meal не передаёшь — по умолчанию true)\nconst countAsMeal = (meal.count_as_meal === undefined) ? true : !!meal.count_as_meal;\nconst newN = oldN + (countAsMeal ? 1 : 0);\n\nfunction clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }\n\n// 6) Score (простая версия)\nconst tCal = Number(t.target_calories || 0);\nconst tProt = Number(t.target_protein_g || 0);\n\nlet score = 0;\nif (tCal > 0) {\n  const diff = Math.abs(newC - tCal) / tCal;\n  score += clamp(Math.round(40 * (1 - diff / 0.25)), 0, 40);\n}\nif (tProt > 0) {\n  const ratio = newP / tProt;\n  score += clamp(Math.round(40 * (ratio / 0.9)), 0, 40);\n}\nscore += (newN >= 3 ? 20 : (newN === 2 ? 10 : 0));\n\nconst now = new Date().toISOString();\n\n// 7) last meal поля (для WebApp)\nconst last_meal_kcal = Math.round(Number(m.calories || 0));\nconst last_meal_pfc =\n  `Б ${Math.round(Number(m.protein || 0))} / ` +\n  `Ж ${Math.round(Number(m.fat || 0))} / ` +\n  `У ${Math.round(Number(m.carbs || 0))}`;\nconst last_meal_type = String(meal.meta?.meal_type || \"unknown\");\n\n// 8) daily_row — то, что пишем в Daily\nconst daily_row = {\n  key: String(meal.meta?.daily_key || \"\"),\n  external_user_id: String(meal.meta?.external_user_id || \"\"),\n  local_date: String(meal.meta?.local_date || \"\"),\n\n  target_calories: tCal,\n  target_protein_g: Number(t.target_protein_g || 0),\n  target_fat_g: Number(t.target_fat_g || 0),\n  target_carbs_g: Number(t.target_carbs_g || 0),\n\n  consumed_calories: Math.round(newC),\n  consumed_protein_g: Math.round(newP),\n  consumed_fat_g: Math.round(newF),\n  consumed_carbs_g: Math.round(newCarb),\n\n  meals_count: newN,\n  score,\n  updated_at: now,\n\n  // новые поля\n  last_meal_kcal,\n  last_meal_pfc,\n  last_meal_type,\n  last_meal_at: now\n};\n\n// 9) Остатки\nconst remaining = {\n  calories: Math.round(tCal - newC),\n  protein_g: Math.round(Number(t.target_protein_g || 0) - newP),\n  fat_g: Math.round(Number(t.target_fat_g || 0) - newF),\n  carbs_g: Math.round(Number(t.target_carbs_g || 0) - newCarb),\n};\n\nreturn [{\n  hasExisting,\n  daily_row,\n  remaining\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3200,
+        1328
+      ],
+      "id": "fccd6010-19e7-4607-bf33-5f6c81902253",
+      "name": "Calc Daily Upsert"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "b607275c-5c9e-43c1-9c34-c038976ec49a",
+              "leftValue": "={{ $json.hasExisting }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2992,
+        1328
+      ],
+      "id": "dc5e40ae-c587-47f2-8ce1-2d40936f3bab",
+      "name": "IF Daily exists"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1239696434,
+          "mode": "list",
+          "cachedResultName": "Daily",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=1239696434"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "key": "={{ String($('Code in JavaScript').item.json.meta.daily_key) }}",
+            "external_user_id": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.external_user_id }}",
+            "local_date": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.local_date }}",
+            "target_calories": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.target_calories }}",
+            "target_protein_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.target_protein_g }}",
+            "target_fat_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.target_fat_g }}",
+            "target_carbs_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.target_carbs_g }}",
+            "consumed_calories": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.consumed_calories }}",
+            "consumed_protein_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.consumed_protein_g }}",
+            "consumed_fat_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.consumed_fat_g }}",
+            "consumed_carbs_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.consumed_carbs_g }}",
+            "meals_count": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.meals_count }}",
+            "score": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.score }}",
+            "updated_at": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.updated_at }}",
+            "last_meal_kcal": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.last_meal_kcal }}",
+            "last_meal_pfc": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.last_meal_pfc }}",
+            "last_meal_type": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.last_meal_type }}",
+            "last_meal_at": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.last_meal_at }}"
+          },
+          "matchingColumns": [
+            "key"
+          ],
+          "schema": [
+            {
+              "id": "key",
+              "displayName": "key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "external_user_id",
+              "displayName": "external_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "local_date",
+              "displayName": "local_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_calories",
+              "displayName": "target_calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_protein_g",
+              "displayName": "target_protein_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_fat_g",
+              "displayName": "target_fat_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_carbs_g",
+              "displayName": "target_carbs_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_calories",
+              "displayName": "consumed_calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_protein_g",
+              "displayName": "consumed_protein_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_fat_g",
+              "displayName": "consumed_fat_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_carbs_g",
+              "displayName": "consumed_carbs_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "meals_count",
+              "displayName": "meals_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_meal_text",
+              "displayName": "last_meal_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "last_meal_kcal",
+              "displayName": "last_meal_kcal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_meal_pfc",
+              "displayName": "last_meal_pfc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_meal_type",
+              "displayName": "last_meal_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_meal_at",
+              "displayName": "last_meal_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2784,
+        1232
+      ],
+      "id": "19d3f2f4-cecd-4602-8e46-cae7da110934",
+      "name": "GS Update Daily",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1239696434,
+          "mode": "list",
+          "cachedResultName": "Daily",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=1239696434"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "key": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.key }}",
+            "external_user_id": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.external_user_id }}",
+            "local_date": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.local_date }}",
+            "target_calories": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.target_calories }}",
+            "target_protein_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.target_protein_g }}",
+            "target_fat_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.target_fat_g }}",
+            "target_carbs_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.target_carbs_g }}",
+            "consumed_calories": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.consumed_calories }}",
+            "consumed_protein_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.consumed_protein_g }}",
+            "consumed_fat_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.consumed_fat_g }}",
+            "consumed_carbs_g": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.consumed_carbs_g }}",
+            "meals_count": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.meals_count }}",
+            "score": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.score }}",
+            "updated_at": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.updated_at }}",
+            "last_meal_kcal": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.last_meal_kcal }}",
+            "last_meal_pfc": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.last_meal_pfc }}",
+            "last_meal_type": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.last_meal_type }}",
+            "last_meal_at": "={{ $node[\"Calc Daily Upsert\"].json.daily_row.last_meal_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "key",
+              "displayName": "key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "external_user_id",
+              "displayName": "external_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "local_date",
+              "displayName": "local_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_calories",
+              "displayName": "target_calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_protein_g",
+              "displayName": "target_protein_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_fat_g",
+              "displayName": "target_fat_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_carbs_g",
+              "displayName": "target_carbs_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_calories",
+              "displayName": "consumed_calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_protein_g",
+              "displayName": "consumed_protein_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_fat_g",
+              "displayName": "consumed_fat_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_carbs_g",
+              "displayName": "consumed_carbs_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "meals_count",
+              "displayName": "meals_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_meal_text",
+              "displayName": "last_meal_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "last_meal_kcal",
+              "displayName": "last_meal_kcal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_meal_pfc",
+              "displayName": "last_meal_pfc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_meal_type",
+              "displayName": "last_meal_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "last_meal_at",
+              "displayName": "last_meal_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2784,
+        1424
+      ],
+      "id": "2380a487-3d45-4914-b884-1c5ea1758f01",
+      "name": "Append row in sheet",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "profile_upsert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -6160,
+        1760
+      ],
+      "id": "2ea3bd79-41bd-4182-977d-ea01eed4f288",
+      "name": "Webhook profile_upsert",
+      "webhookId": "6133fc62-b1a3-4058-8815-c18767a54897"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"forbidden\" }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5600,
+        1888
+      ],
+      "id": "bc0abdca-3880-4355-829b-70902de15765",
+      "name": "Respond Forbidden profile"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "da0fcc31-12fa-48cb-bc00-8da58461fe5d",
+              "leftValue": "={{ $json.body?.token || $json.headers?.['x-webhook-token'] || '' }}",
+              "rightValue": "82c1d601fcc0371bb17cbc69942fccc0",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5760,
+        1872
+      ],
+      "id": "63b8c328-7e3c-4b79-a8be-f060794bba57",
+      "name": "IF token profile"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"accepted\" }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5600,
+        1760
+      ],
+      "id": "49956ef4-a4f5-4692-82cb-98ed33ac9a47",
+      "name": "Respond Accepted profile"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $node[\"Webhook profile_upsert\"].json.body || {};\n\nfunction num(x, def=0) {\n  const n = Number(String(x ?? \"\").replace(\",\", \".\"));\n  return Number.isFinite(n) ? n : def;\n}\n\nconst external_user_id = String(b.external_user_id || \"\").trim();\nconst chat_id = String(b.chat_id || external_user_id).trim();\nconst timezone = String(b.timezone || \"Europe/Moscow\");\n\nconst sex = String(b.sex || \"\").toLowerCase(); // male/female\nconst age = num(b.age);\nconst height_cm = num(b.height_cm);\nconst weight_kg = num(b.weight_kg);\nconst activity_level = num(b.activity_level, 1.2); // 1.2/1.375/1.55/1.725/1.9\nconst goal = String(b.goal || \"maintain\").toLowerCase(); // lose/maintain/gain\n\nif (!external_user_id) throw new Error(\"external_user_id required\");\nif (![\"male\",\"female\"].includes(sex)) throw new Error(\"sex must be male/female\");\n\n// Mifflin–St Jeor\nconst s = (sex === \"male\") ? 5 : -161;\nconst bmr = 10*weight_kg + 6.25*height_cm - 5*age + s;\nconst tdee = bmr * activity_level;\n\nlet target_calories = tdee;\nif (goal === \"lose\") target_calories = tdee * 0.85;\nif (goal === \"gain\") target_calories = tdee * 1.10;\ntarget_calories = Math.round(target_calories);\n\n// базовые макросы\nconst target_protein_g = Math.round(weight_kg * (goal === \"lose\" ? 2.0 : 1.8));\nconst target_fat_g = Math.round(weight_kg * 0.8);\nconst target_carbs_g = Math.max(0, Math.round((target_calories - (target_protein_g*4 + target_fat_g*9)) / 4));\n\nconst now = new Date().toISOString();\n\nreturn [{\n  key: external_user_id,\n  external_user_id,\n  chat_id,\n  timezone,\n  sex,\n  age,\n  height_cm,\n  weight_kg,\n  activity_level,\n  goal,\n  target_calories,\n  target_protein_g,\n  target_fat_g,\n  target_carbs_g,\n  created_at: now,\n  updated_at: now\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5360,
+        1760
+      ],
+      "id": "1f93f2ee-3d28-4690-8867-0aa192812b42",
+      "name": "Calc targets"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 135524460,
+          "mode": "list",
+          "cachedResultName": "Users",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=135524460"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "key": "={{ $json.key }}",
+            "external_user_id": "={{ $json.external_user_id }}",
+            "chat_id": "={{ $json.chat_id }}",
+            "timezone": "={{ $json.timezone }}",
+            "sex": "={{ $json.sex }}",
+            "age": "={{ $json.age }}",
+            "height_cm": "={{ $json.height_cm }}",
+            "weight_kg": "={{ $json.weight_kg }}",
+            "activity_level": "={{ $json.activity_level }}",
+            "goal": "={{ $json.goal }}",
+            "target_calories": "={{ $json.target_calories }}",
+            "target_protein_g": "={{ $json.target_protein_g }}",
+            "target_fat_g": "={{ $json.target_fat_g }}",
+            "target_carbs_g": "={{ $json.target_carbs_g }}",
+            "created_at": "={{ $json.created_at }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [
+            "key"
+          ],
+          "schema": [
+            {
+              "id": "key",
+              "displayName": "key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "external_user_id",
+              "displayName": "external_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timezone",
+              "displayName": "timezone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sex",
+              "displayName": "sex",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "age",
+              "displayName": "age",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "height_cm",
+              "displayName": "height_cm",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "weight_kg",
+              "displayName": "weight_kg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "activity_level",
+              "displayName": "activity_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "goal",
+              "displayName": "goal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_calories",
+              "displayName": "target_calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_protein_g",
+              "displayName": "target_protein_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_fat_g",
+              "displayName": "target_fat_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_carbs_g",
+              "displayName": "target_carbs_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5136,
+        1760
+      ],
+      "id": "3150c994-5f8e-410d-aca7-0a8654c4ebb6",
+      "name": "GS Upsert User",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Calc targets\"].json.chat_id }}",
+        "text": "={{ \"✅ Профиль сохранён (МСК).\\n\\nСуточная цель:\\n— \" + $node[\"Calc targets\"].json.target_calories + \" ккал\\n— Б \" + $node[\"Calc targets\"].json.target_protein_g + \" г / Ж \" + $node[\"Calc targets\"].json.target_fat_g + \" г / У \" + $node[\"Calc targets\"].json.target_carbs_g + \" г\\n\\nТеперь выбирай приём пищи и отправляй фото — я буду вести дневник.\" }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -4896,
+        1760
+      ],
+      "id": "937c1d68-38fc-4556-a7a6-8f9293981d6e",
+      "name": "TG Profile saved",
+      "webhookId": "1bd8484d-3235-48cc-b55c-1de669c22c9a",
+      "credentials": {
+        "telegramApi": {
+          "id": "Dc4ZGpb5v2VWtmas",
+          "name": "LosevSekret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 22
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -6176,
+        3568
+      ],
+      "id": "91d7b466-ca23-4df5-bbc8-bd1c5af395b4",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 135524460,
+          "mode": "list",
+          "cachedResultName": "Users",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=135524460"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5968,
+        3568
+      ],
+      "id": "8398891e-481b-423b-835e-f4e9d21d6508",
+      "name": "GS Get Users",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -5728,
+        3568
+      ],
+      "id": "cdc5c58a-86b3-423c-9883-01289ad3a968",
+      "name": "Split Users"
+    },
+    {
+      "parameters": {
+        "jsCode": "const u = $json;\n\nconst tz = String(u.timezone || \"Europe/Moscow\");\nconst fmt = new Intl.DateTimeFormat(\"en-CA\", { timeZone: tz, year:\"numeric\", month:\"2-digit\", day:\"2-digit\" });\nconst local_date = fmt.format(new Date());\n\nreturn [{\n  ...u,\n  tz,\n  local_date,\n  daily_key: `${u.external_user_id}:${local_date}`\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5520,
+        3568
+      ],
+      "id": "75fedf28-f612-4c00-bf30-4a48a0ed7c03",
+      "name": "Build daily_key"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1239696434,
+          "mode": "list",
+          "cachedResultName": "Daily",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=1239696434"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "key",
+              "lookupValue": "={{ String($json.daily_key) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5312,
+        3568
+      ],
+      "id": "7902268f-637d-42a0-b655-19045cc1678f",
+      "name": "GS Lookup Daily (digest)",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const u = $node[\"Build daily_key\"].json;\n\n// daily может быть объектом или массивом\nconst dailyRaw = $json;\nconst d = Array.isArray(dailyRaw) ? dailyRaw[0] : dailyRaw;\n\nconst has = d && String(d.key || \"\") === String(u.daily_key || \"\");\n\nif (!has) {\n  return [{\n    chat_id: u.chat_id,\n    text: `🧾 Отчёт за ${u.local_date}\\nСегодня записей не было.`\n  }];\n}\n\nconst consumed = Number(d.consumed_calories || 0);\nconst target = Number(d.target_calories || 0);\nconst diff = Math.round(consumed - target);\n\nreturn [{\n  chat_id: u.chat_id,\n  text:\n`🧾 Отчёт за ${d.local_date} (МСК)\nКалории: ${d.consumed_calories}/${d.target_calories} (${diff>=0?\"+\":\"\"}${diff})\nБ/Ж/У: ${d.consumed_protein_g}/${d.target_protein_g} • ${d.consumed_fat_g}/${d.target_fat_g} • ${d.consumed_carbs_g}/${d.target_carbs_g}\nПриёмов: ${d.meals_count}\nКачество: ${d.score}/100\n\nФокус на завтра:\n— добери белок, если не добрал\n— добавь овощи хотя бы в 1–2 приёма\n— держи калории ближе к цели`\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5104,
+        3568
+      ],
+      "id": "a167cf75-4d6b-439b-8d79-66aa18f88b3f",
+      "name": "Compose digest"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -4912,
+        3568
+      ],
+      "id": "9d4d3ce6-1a05-48e1-a0e3-6711926934c6",
+      "name": "Send a text message1",
+      "webhookId": "8c11919c-5946-4b1f-9193-729739cddaca",
+      "credentials": {
+        "telegramApi": {
+          "id": "Dc4ZGpb5v2VWtmas",
+          "name": "LosevSekret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c47eb3f9-e016-4a8a-a796-e01c41880981",
+              "leftValue": "={{ $node[\"Prepare context\"].json.caption }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4368,
+        1488
+      ],
+      "id": "dd1754e0-61fa-496d-b9cf-b14fe411a947",
+      "name": "IF Has caption"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $node[\"Prepare context\"].json.chat_id }}",
+        "text": "Пришли фото еды или напиши текстом, что ты ел(а).",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -4192,
+        1664
+      ],
+      "id": "f02f40cf-03af-4695-a586-92c3a2527d15",
+      "name": "TG Send",
+      "webhookId": "462be6ea-bd2d-445f-85e5-9c2639bfb18f",
+      "credentials": {
+        "telegramApi": {
+          "id": "Dc4ZGpb5v2VWtmas",
+          "name": "LosevSekret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Ты анализируешь текстовое описание еды.\n\nВерни ТОЛЬКО JSON (без текста вокруг), строго по схеме:\n\n{\n  \"items\": [{\"name\": string, \"grams\": number}],\n  \"totals\": {\"calories\": number, \"protein_g\": number, \"fat_g\": number, \"carbs_g\": number},\n  \"confidence\": number,\n  \"notes\": string\n}\n\nТекст пользователя:\n{{$node[\"Prepare context\"].json.caption}}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        -4016,
+        1472
+      ],
+      "id": "97ea230e-5223-4b97-a5e9-9f018ed8c41c",
+      "name": "Analyze text",
+      "credentials": {
+        "openAiApi": {
+          "id": "OyH14ydHVCpHI4iR",
+          "name": "ИИ КПТ"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -6176,
+        3808
+      ],
+      "id": "6a76899e-043d-4e5c-8461-64e108aae79f",
+      "name": "ST Breakfast 10:00"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 14
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -6176,
+        4048
+      ],
+      "id": "2449d0d4-63cb-4068-af3c-6196829eaa64",
+      "name": "ST Lunch 14:00"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 19
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -6176,
+        4288
+      ],
+      "id": "1c6c88eb-4f4d-471a-b840-492a274a4a5a",
+      "name": "ST Dinner 19:00"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  ...$json,\n  reminder_meal_type: \"breakfast\",\n  reminder_title: \"завтрак\",\n  reminder_text: \"🍳 Ты ещё не отметил(а) завтрак. Отправь фото еды или напиши, что ел(а).\"\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5520,
+        3808
+      ],
+      "id": "585a74a0-5c56-4f69-a3d2-b498d0c3e48f",
+      "name": "Set reminder ctx (breakfast)"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  ...$json,\n  reminder_meal_type: \"lunch\",\n  reminder_title: \"обед\",\n  reminder_text: \"🍲 Ты ещё не отметил(а) обед. Отправь фото еды или напиши, что ел(а).\"\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5504,
+        4048
+      ],
+      "id": "fc3d547d-92a6-4356-b8f4-8b6fa4f766c9",
+      "name": "Set reminder ctx (lunch)"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  ...$json,\n  reminder_meal_type: \"dinner\",\n  reminder_title: \"ужин\",\n  reminder_text: \"🍽 Ты ещё не отметил(а) ужин. Отправь фото еды или напиши, что ел(а).\"\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5504,
+        4288
+      ],
+      "id": "d08a7ff1-ebaa-4f54-b16c-bcc3559e8b0c",
+      "name": "Set reminder ctx (dinner)"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 135524460,
+          "mode": "list",
+          "cachedResultName": "Users",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=135524460"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5968,
+        3808
+      ],
+      "id": "7eaba0ee-c612-4deb-95d9-0647b4b56e90",
+      "name": "GS Get Users (breakfast)",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -5728,
+        3808
+      ],
+      "id": "79fb82ba-885b-4fa4-b62a-02b633e49133",
+      "name": "Split Users (breakfast)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const u = $json;\n\nconst tz = String(u.timezone || \"Europe/Moscow\");\nconst now = new Date();\n\nconst dateFmt = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: tz,\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\"\n});\n\nconst hourFmt = new Intl.DateTimeFormat(\"en-GB\", {\n  timeZone: tz,\n  hour: \"2-digit\",\n  hour12: false\n});\n\nconst local_date = dateFmt.format(now);\nconst local_hour = Number(hourFmt.format(now));\n\nreturn [{\n  ...u,\n  tz,\n  local_date,\n  local_hour\n  // ВАЖНО: не переопределяем reminder_* — они уже добавлены Set reminder ctx\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5312,
+        3808
+      ],
+      "id": "ffa77060-cbf4-4cba-9c8a-178f3b3aa5e5",
+      "name": "Build daily_key (breakfast)"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 639392029,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=639392029"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "external_user_id",
+              "lookupValue": "={{ $json.external_user_id }}"
+            },
+            {
+              "lookupColumn": "local_date",
+              "lookupValue": "={{ $json.local_date }}"
+            },
+            {
+              "lookupColumn": "meal_type",
+              "lookupValue": "={{ $json.reminder_meal_type }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -4896,
+        3808
+      ],
+      "id": "77609916-c3ac-48d6-b12f-abc2f69f80c2",
+      "name": "GS Lookup Meals (breakfast)",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3b31e903-dfb3-483d-8a65-805e24074aff",
+              "leftValue": "={{ $json.rowNumber }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4672,
+        3808
+      ],
+      "id": "52b4e8b0-7c4f-4ceb-a086-146c7165d95d",
+      "name": "IF Meal already logged (breakfast)"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.reminder_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -4416,
+        3808
+      ],
+      "id": "3d6c120f-2f2f-4ee4-a874-d488799d95a4",
+      "name": "Send reminder (breakfast)",
+      "webhookId": "92c6267a-3e18-41d5-994b-5ed882d24170",
+      "credentials": {
+        "telegramApi": {
+          "id": "Dc4ZGpb5v2VWtmas",
+          "name": "LosevSekret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 135524460,
+          "mode": "list",
+          "cachedResultName": "Users",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=135524460"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5968,
+        4048
+      ],
+      "id": "96c9e37d-1fe5-483a-8c5d-e95b9ca11003",
+      "name": "GS Get Users (lunch)",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -5728,
+        4048
+      ],
+      "id": "95914341-e2b8-439b-8fb6-ad48adbd6836",
+      "name": "Split Users (lunch)"
+    },
+    {
+      "parameters": {
+        "jsCode": "const u = $json;\n\nconst tz = String(u.timezone || \"Europe/Moscow\");\nconst now = new Date();\n\nconst dateFmt = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: tz,\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\"\n});\n\nconst hourFmt = new Intl.DateTimeFormat(\"en-GB\", {\n  timeZone: tz,\n  hour: \"2-digit\",\n  hour12: false\n});\n\nconst local_date = dateFmt.format(now);\nconst local_hour = Number(hourFmt.format(now));\n\nreturn [{\n  ...u,\n  tz,\n  local_date,\n  local_hour\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5312,
+        4048
+      ],
+      "id": "959530f4-06f8-44a8-bcc3-279448dfed00",
+      "name": "Build daily_key (lunch)"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 639392029,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=639392029"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "external_user_id",
+              "lookupValue": "={{ $('Build daily_key (lunch)').item.json.external_user_id }}"
+            },
+            {
+              "lookupColumn": "local_date",
+              "lookupValue": "={{ $('Build daily_key (lunch)').item.json.local_date }}"
+            },
+            {
+              "lookupColumn": "meal_type",
+              "lookupValue": "={{ $json.reminder_meal_type }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -4880,
+        4032
+      ],
+      "id": "29d00f8b-c47a-4d6a-8c53-6fd67499e8d7",
+      "name": "GS Lookup Meals (lunch)",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.reminder_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -4416,
+        4048
+      ],
+      "id": "ac855e0d-9158-478f-a43e-7170d91d75e8",
+      "name": "Send reminder (lunch)",
+      "webhookId": "92c6267a-3e18-41d5-994b-5ed882d24170",
+      "credentials": {
+        "telegramApi": {
+          "id": "Dc4ZGpb5v2VWtmas",
+          "name": "LosevSekret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.reminder_text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -4416,
+        4288
+      ],
+      "id": "f90eb254-505e-4e20-9aac-4c6f461c8b7f",
+      "name": "Send reminder (dinner)",
+      "webhookId": "92c6267a-3e18-41d5-994b-5ed882d24170",
+      "credentials": {
+        "telegramApi": {
+          "id": "Dc4ZGpb5v2VWtmas",
+          "name": "LosevSekret"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 135524460,
+          "mode": "list",
+          "cachedResultName": "Users",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=135524460"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5968,
+        4288
+      ],
+      "id": "effa664b-b1c5-48ef-87c5-c7fafaeb6c8b",
+      "name": "GS Get Users (dinner)",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const u = $json;\n\nconst tz = String(u.timezone || \"Europe/Moscow\");\nconst now = new Date();\n\nconst dateFmt = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: tz,\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\"\n});\n\nconst hourFmt = new Intl.DateTimeFormat(\"en-GB\", {\n  timeZone: tz,\n  hour: \"2-digit\",\n  hour12: false\n});\n\nconst local_date = dateFmt.format(now);\nconst local_hour = Number(hourFmt.format(now));\n\nreturn [{\n  ...u,\n  tz,\n  local_date,\n  local_hour\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5312,
+        4288
+      ],
+      "id": "6052438a-7ca4-4d3b-9300-c736266c9397",
+      "name": "Build daily_key (dinner)"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 639392029,
+          "mode": "list",
+          "cachedResultName": "Meals",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=639392029"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "external_user_id",
+              "lookupValue": "={{ $json.external_user_id }}"
+            },
+            {
+              "lookupColumn": "local_date",
+              "lookupValue": "={{ $json.local_date }}"
+            },
+            {
+              "lookupColumn": "meal_type",
+              "lookupValue": "={{ $json.reminder_meal_type }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -4896,
+        4288
+      ],
+      "id": "4048ef61-df78-4c82-99b1-c35f7e760c45",
+      "name": "GS Lookup Meals (dinner)",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -5728,
+        4288
+      ],
+      "id": "23c0fcfc-4c96-4690-a0ce-4588da3d6131",
+      "name": "Split Users (dinner)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3b31e903-dfb3-483d-8a65-805e24074aff",
+              "leftValue": "={{ $json.rowNumber }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4672,
+        4048
+      ],
+      "id": "20222fa5-595b-48ae-ae92-8afb43d69aff",
+      "name": "IF Meal already logged (lunch)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3b31e903-dfb3-483d-8a65-805e24074aff",
+              "leftValue": "={{ $json.rowNumber }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -4672,
+        4288
+      ],
+      "id": "b0549952-c842-41f0-9a00-d3ade8502920",
+      "name": "IF Meal already logged (dinner)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "43c09e51-a546-4bf8-a499-f0e8efce2ea8",
+              "leftValue": "={{ $json.local_hour }}",
+              "rightValue": 10,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5104,
+        3808
+      ],
+      "id": "7370fe23-6bb2-4221-b757-44b6210ce5b7",
+      "name": "IF local_hour breakfast"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "43c09e51-a546-4bf8-a499-f0e8efce2ea8",
+              "leftValue": "={{ $json.local_hour }}",
+              "rightValue": 14,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5104,
+        4048
+      ],
+      "id": "cd62d34c-5a57-49fb-98d0-94c106f32a70",
+      "name": "IF local_hour lunch"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "43c09e51-a546-4bf8-a499-f0e8efce2ea8",
+              "leftValue": "={{ $json.local_hour }}",
+              "rightValue": 19,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5104,
+        4288
+      ],
+      "id": "0961fa4a-9814-4857-9dfa-cf790ae5f1b5",
+      "name": "IF local_hour dinner"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "profile_get",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -6160,
+        2176
+      ],
+      "id": "188b5cea-6475-48e3-b649-a554bdb5a376",
+      "name": "WB profile_get",
+      "webhookId": "cdfbc89c-fd5b-4649-9281-f3853975f883"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7624a9af-5164-40be-b283-0259ab7eb195",
+              "leftValue": "={{ $json.body?.token || $json.headers?.['x-webhook-token'] || '' }}",
+              "rightValue": "82c1d601fcc0371bb17cbc69942fccc0",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5760,
+        2288
+      ],
+      "id": "811fcfcb-a02b-4e84-b887-6638e0d75b35",
+      "name": "IF token profile_get"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code profile_get prepare (FIXED)\n// Работает корректно даже если daily_get ещё не выполнялся\n\nconst b = $json.body || {};  // входные данные с WB profile_get приходят сюда через IF token profile_get\n\nconst external_user_id = String(b.external_user_id || \"\").trim();\nif (!external_user_id) {\n  throw new Error(\"external_user_id required\");\n}\n\nreturn [{\n  external_user_id\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5584,
+        2160
+      ],
+      "id": "0c4808ac-264d-488f-8b50-dda645c11057",
+      "name": "Code profile_get prepare"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 135524460,
+          "mode": "list",
+          "cachedResultName": "Users",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=135524460"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "key",
+              "lookupValue": "={{ String($json.external_user_id) }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5408,
+        2160
+      ],
+      "id": "54bf5184-4918-489c-8185-1d3d4fd964fe",
+      "name": "GS Lookup Users (profile_get)",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const u = $json || {};\n\n// в n8n/GS бывает rowNumber или row_number\nconst rowNum = u.rowNumber ?? u.row_number ?? u.row_number?.toString?.();\nconst found = !!rowNum;\n\nif (!found) {\n  return [{\n    ok: true,\n    found: false\n  }];\n}\n\nreturn [{\n  ok: true,\n  found: true,\n  profile: {\n    external_user_id: String(u.external_user_id || u.key || \"\"),\n    chat_id: String(u.chat_id || u.external_user_id || u.key || \"\"),\n    timezone: String(u.timezone || \"Europe/Moscow\"),\n\n    sex: String(u.sex || \"\"),\n    age: Number(u.age || 0),\n    height_cm: Number(u.height_cm || 0),\n    weight_kg: Number(u.weight_kg || 0),\n    activity_level: Number(u.activity_level || 0),\n    goal: String(u.goal || \"\"),\n\n    target_calories: Number(u.target_calories || 0),\n    target_protein_g: Number(u.target_protein_g || 0),\n    target_fat_g: Number(u.target_fat_g || 0),\n    target_carbs_g: Number(u.target_carbs_g || 0),\n\n    updated_at: String(u.updated_at || \"\")\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5200,
+        2160
+      ],
+      "id": "26061f32-29b1-4dbe-8840-6e0a742da157",
+      "name": "Code profile_get build_response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5024,
+        2160
+      ],
+      "id": "0419efe4-0e0a-4f52-b5f4-9d3d2ea46a8e",
+      "name": "RESP profile_get ok"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"forbidden\" }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5584,
+        2320
+      ],
+      "id": "60af69e3-8ac1-48eb-b7a5-e6b6d141110c",
+      "name": "RESP profile_get forbidden"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "daily_get",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -6160,
+        2608
+      ],
+      "id": "bf5b0cd8-3b25-4758-a537-4c9d7088e952",
+      "name": "WB daily_get",
+      "webhookId": "547791fa-95e9-4cc7-8ae8-b077c9228352"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0faa742c-4146-43a5-be51-831cf21ddb45",
+              "leftValue": "={{ $json.body?.token || $json.headers?.['x-webhook-token'] || '' }}",
+              "rightValue": "82c1d601fcc0371bb17cbc69942fccc0",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5760,
+        2688
+      ],
+      "id": "eab34ed9-14b2-4aec-9988-d8c8c06ac800",
+      "name": "IF token daily_get"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"status\": \"forbidden\" }\n",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5536,
+        2704
+      ],
+      "id": "0457144e-1e81-4930-8fe8-e555ae43e274",
+      "name": "RESP daily_get forbidden"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $node[\"WB daily_get\"].json.body || {};\nconst external_user_id = String(b.external_user_id || \"\").trim();\nif (!external_user_id) throw new Error(\"external_user_id required\");\nreturn [{ external_user_id }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5536,
+        2576
+      ],
+      "id": "8f1a19b9-3d2b-427f-9bd2-8219e3df25bf",
+      "name": "Code daily_get prepare"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code daily_get local_date (UPDATED)\n// - если пришёл local_date (YYYY-MM-DD) -> используем его\n// - иначе -> считаем \"сегодня\" по timezone пользователя (как было)\n\nconst u = $node[\"GS Lookup Users (daily_get)\"].json || {};\nconst external_user_id = String($json.external_user_id || \"\").trim();\nif (!external_user_id) throw new Error(\"external_user_id required\");\n\nconst tz = String(u.timezone || \"Europe/Moscow\");\n\n// local_date может прийти из предыдущей ноды (prepare) или напрямую из body webhook\nconst passedLocalDate =\n  String($json.local_date || \"\").trim() ||\n  String($node[\"WB daily_get\"]?.json?.body?.local_date || \"\").trim();\n\nlet local_date = \"\";\n\n// validate YYYY-MM-DD if provided\nif (passedLocalDate) {\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(passedLocalDate)) {\n    throw new Error(\"local_date must be YYYY-MM-DD\");\n  }\n  local_date = passedLocalDate;\n} else {\n  // fallback: today in user's timezone\n  const fmt = new Intl.DateTimeFormat(\"en-CA\", {\n    timeZone: tz,\n    year: \"numeric\",\n    month: \"2-digit\",\n    day: \"2-digit\",\n  });\n  local_date = fmt.format(new Date());\n}\n\nconst daily_key = `${external_user_id}:${local_date}`;\n\nconst targets = {\n  target_calories: Number(u.target_calories || 0),\n  target_protein_g: Number(u.target_protein_g || 0),\n  target_fat_g: Number(u.target_fat_g || 0),\n  target_carbs_g: Number(u.target_carbs_g || 0),\n};\n\nreturn [{\n  external_user_id,\n  timezone: tz,\n  local_date,\n  daily_key,\n  targets,\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5120,
+        2592
+      ],
+      "id": "0a05248a-d99c-4205-ab8d-404feb1762c0",
+      "name": "Code daily_get local_date"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 135524460,
+          "mode": "list",
+          "cachedResultName": "Users",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=135524460"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "key",
+              "lookupValue": "={{ String($json.external_user_id) }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5328,
+        2592
+      ],
+      "id": "9a42fbb5-455b-4d67-b80a-e0df60312b45",
+      "name": "GS Lookup Users (daily_get)",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1239696434,
+          "mode": "list",
+          "cachedResultName": "Daily",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=1239696434"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "key",
+              "lookupValue": "={{ $json.daily_key }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -4912,
+        2592
+      ],
+      "id": "7995659b-7d2b-4c8d-ab19-c8a284137997",
+      "name": "GS Lookup Daily (daily_get)",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $node[\"Code daily_get local_date\"].json;\nconst d = $node[\"GS Lookup Daily (daily_get)\"].json || {};\n\n// Надёжно: ищем по key\nconst found = String(d.key || \"\") === String(ctx.daily_key || \"\");\n\nif (!found) {\n  return [{\n    ok: true,\n    found: false,\n    daily: {\n      key: ctx.daily_key,\n      external_user_id: ctx.external_user_id,\n      local_date: ctx.local_date,\n\n      target_calories: Number(ctx.targets.target_calories || 0),\n      target_protein_g: Number(ctx.targets.target_protein_g || 0),\n      target_fat_g: Number(ctx.targets.target_fat_g || 0),\n      target_carbs_g: Number(ctx.targets.target_carbs_g || 0),\n\n      consumed_calories: 0,\n      consumed_protein_g: 0,\n      consumed_fat_g: 0,\n      consumed_carbs_g: 0,\n\n      meals_count: 0,\n      score: 0,\n      updated_at: \"\",\n\n      // last meal\n      last_meal_text: \"\",\n      last_meal_kcal: 0,\n      last_meal_pfc: \"\",\n      last_meal_type: \"\",\n      last_meal_at: \"\"\n    }\n  }];\n}\n\nreturn [{\n  ok: true,\n  found: true,\n  daily: {\n    key: String(d.key || ctx.daily_key),\n    external_user_id: String(d.external_user_id || ctx.external_user_id),\n    local_date: String(d.local_date || ctx.local_date),\n\n    target_calories: Number(d.target_calories || ctx.targets.target_calories || 0),\n    target_protein_g: Number(d.target_protein_g || ctx.targets.target_protein_g || 0),\n    target_fat_g: Number(d.target_fat_g || ctx.targets.target_fat_g || 0),\n    target_carbs_g: Number(d.target_carbs_g || ctx.targets.target_carbs_g || 0),\n\n    consumed_calories: Number(d.consumed_calories || 0),\n    consumed_protein_g: Number(d.consumed_protein_g || 0),\n    consumed_fat_g: Number(d.consumed_fat_g || 0),\n    consumed_carbs_g: Number(d.consumed_carbs_g || 0),\n\n    meals_count: Number(d.meals_count || 0),\n    score: Number(d.score || 0),\n    updated_at: String(d.updated_at || \"\"),\n\n    // last meal\n    last_meal_text: String(d.last_meal_text || \"\"),\n    last_meal_kcal: Number(d.last_meal_kcal || 0),\n    last_meal_pfc: String(d.last_meal_pfc || \"\"),\n    last_meal_type: String(d.last_meal_type || \"\"),\n    last_meal_at: String(d.last_meal_at || \"\")\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4688,
+        2592
+      ],
+      "id": "1afdce29-acb9-4b53-99fd-6bf2eff73ad5",
+      "name": "Code daily_get build_response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -4464,
+        2592
+      ],
+      "id": "db5ff879-b149-4e42-ba78-50aff583a84d",
+      "name": "RESP daily_get ok"
+    },
+    {
+      "parameters": {
+        "jsCode": "const key = String($node[\"Calc Daily Upsert\"].json.daily_row.key || \"\");\n\n// берем короткий текст (webapp_text). если вдруг его нет — fallback на text\nconst fromNode = $node[\"Code in JavaScript1\"].json || {};\nconst last_meal_text = String(fromNode.webapp_text || fromNode.text || \"\").trim();\n\nreturn [{\n  key,\n  last_meal_text\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2368,
+        1328
+      ],
+      "id": "8f5ee7f7-2cdf-4765-9015-426405e9ca4b",
+      "name": "Build Daily last_meal_text"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1239696434,
+          "mode": "list",
+          "cachedResultName": "Daily",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=1239696434"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "key": "={{ $json.key }}",
+            "last_meal_text": "={{ $json.last_meal_text }}"
+          },
+          "matchingColumns": [
+            "key"
+          ],
+          "schema": [
+            {
+              "id": "key",
+              "displayName": "key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "external_user_id",
+              "displayName": "external_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "local_date",
+              "displayName": "local_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_calories",
+              "displayName": "target_calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_protein_g",
+              "displayName": "target_protein_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_fat_g",
+              "displayName": "target_fat_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_carbs_g",
+              "displayName": "target_carbs_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_calories",
+              "displayName": "consumed_calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_protein_g",
+              "displayName": "consumed_protein_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_fat_g",
+              "displayName": "consumed_fat_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "consumed_carbs_g",
+              "displayName": "consumed_carbs_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "meals_count",
+              "displayName": "meals_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_meal_text",
+              "displayName": "last_meal_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_meal_kcal",
+              "displayName": "last_meal_kcal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_meal_pfc",
+              "displayName": "last_meal_pfc",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_meal_type",
+              "displayName": "last_meal_type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_meal_at",
+              "displayName": "last_meal_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2160,
+        1328
+      ],
+      "id": "e8ffa4d2-ad90-417d-ad7f-061dfecfdc84",
+      "name": "GS Update Daily (last_meal_text)",
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1bcd06e2-0de3-4cd9-9bc0-972947e156cf",
+              "leftValue": "={{ String($json.method || $json.httpMethod || '').toUpperCase() }}",
+              "rightValue": "OPTIONS",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5952,
+        2176
+      ],
+      "id": "0d44833e-30df-464d-b00e-ef68f8dd8a20",
+      "name": "IF OPTIONS profile_get"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5760,
+        2032
+      ],
+      "id": "52b51f18-d60a-4466-abb9-afa1e846f291",
+      "name": "RESP CORS profile_get"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1bcd06e2-0de3-4cd9-9bc0-972947e156cf",
+              "leftValue": "={{ String($json.method || $json.httpMethod || '').toUpperCase() }}",
+              "rightValue": "OPTIONS",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5984,
+        2608
+      ],
+      "id": "5c657841-882a-4739-b5c8-85c2a1c3a5a5",
+      "name": "IF OPTIONS daily_get"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5760,
+        2480
+      ],
+      "id": "4581fd7f-311a-4a15-b7dc-bfab439ce959",
+      "name": "RESP CORS daily_get"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1bcd06e2-0de3-4cd9-9bc0-972947e156cf",
+              "leftValue": "={{ String($json.method || $json.httpMethod || '').toUpperCase() }}",
+              "rightValue": "OPTIONS",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5968,
+        1760
+      ],
+      "id": "7022ffe5-e6e5-4bf6-9946-8da937bd8c12",
+      "name": "IF OPTIONS profile_upsert"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5760,
+        1680
+      ],
+      "id": "641ea5df-00c6-4190-b90e-b8827dbaaf45",
+      "name": "RESP CORS profile_upsert"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1bcd06e2-0de3-4cd9-9bc0-972947e156cf",
+              "leftValue": "={{ String($json.method || $json.httpMethod || '').toUpperCase() }}",
+              "rightValue": "OPTIONS",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5968,
+        1408
+      ],
+      "id": "44e2e4e9-3135-48c5-9169-2e8ec04c6c46",
+      "name": "IF OPTIONS losevfft"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5760,
+        1328
+      ],
+      "id": "589e0a0a-ce76-4e58-b7fd-0fbfea879286",
+      "name": "RESP CORS losevfft"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "month_get",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -6160,
+        2992
+      ],
+      "id": "95ba8f37-d80e-4f43-963e-88978452e07b",
+      "name": "WB month_get",
+      "webhookId": "af6c3f4b-8106-457d-97d7-316667a47566"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1bcd06e2-0de3-4cd9-9bc0-972947e156cf",
+              "leftValue": "={{ String($json.method || $json.httpMethod || '').toUpperCase() }}",
+              "rightValue": "OPTIONS",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5968,
+        2992
+      ],
+      "id": "292852e1-29cb-4c43-a3db-efc351f51af1",
+      "name": "IF OPTIONS month_get"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5760,
+        2880
+      ],
+      "id": "cda56f68-eb70-4537-b4e7-ff15d0759238",
+      "name": "RESP CORS month_get"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0faa742c-4146-43a5-be51-831cf21ddb45",
+              "leftValue": "={{ $json.body?.token || $json.headers?.['x-webhook-token'] || '' }}",
+              "rightValue": "82c1d601fcc0371bb17cbc69942fccc0",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5760,
+        3056
+      ],
+      "id": "91426f90-7a00-404d-9fe6-8069dcdd274d",
+      "name": "IF token month_get"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"status\": \"forbidden\" }\n",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5552,
+        3072
+      ],
+      "id": "f0a31b20-247a-4697-a63a-15191f1b63a4",
+      "name": "RESP month_get forbidden"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $node[\"WB month_get\"].json.body || {};\n\nconst external_user_id = String(b.external_user_id || \"\").trim();\nif (!external_user_id) throw new Error(\"external_user_id required\");\n\n// optional YYYY-MM\nconst passedMonth = String(b.month || \"\").trim();\n\nlet month = \"\";\nif (passedMonth) {\n  if (!/^\\d{4}-\\d{2}$/.test(passedMonth)) {\n    throw new Error(\"month must be YYYY-MM\");\n  }\n  month = passedMonth;\n}\n\nreturn [{ external_user_id, month }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5552,
+        2928
+      ],
+      "id": "8ba68c30-8843-4842-95cd-944c7fb8972f",
+      "name": "Code month_get prepare"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 135524460,
+          "mode": "list",
+          "cachedResultName": "Users",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=135524460"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "key",
+              "lookupValue": "={{ String($json.external_user_id) }}"
+            }
+          ]
+        },
+        "options": {
+          "returnFirstMatch": true
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5344,
+        2928
+      ],
+      "id": "abdca004-d672-435c-b8cc-ace8ffd72512",
+      "name": "GS Lookup Users (month_get)",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const u = $node[\"GS Lookup Users (month_get)\"].json || {};\n\nconst external_user_id = String($json.external_user_id || \"\").trim();\nif (!external_user_id) throw new Error(\"external_user_id required\");\n\nconst user_found = String(u.key || \"\") === external_user_id;\n\nconst tz = String(u.timezone || \"Europe/Moscow\");\n\n// month optional from prepare\nconst passedMonth = String($json.month || \"\").trim();\n\nconst fmtMonth = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: tz,\n  year: \"numeric\",\n  month: \"2-digit\",\n});\nconst fmtDate = new Intl.DateTimeFormat(\"en-CA\", {\n  timeZone: tz,\n  year: \"numeric\",\n  month: \"2-digit\",\n  day: \"2-digit\",\n});\n\nconst currentMonth = fmtMonth.format(new Date()); // YYYY-MM\nconst month = passedMonth || currentMonth;\n\nif (!/^\\d{4}-\\d{2}$/.test(month)) throw new Error(\"month invalid\");\n\nconst today_local = fmtDate.format(new Date()); // YYYY-MM-DD\n\nconst targets = {\n  target_calories: Number(u.target_calories || 0),\n  target_protein_g: Number(u.target_protein_g || 0),\n  target_fat_g: Number(u.target_fat_g || 0),\n  target_carbs_g: Number(u.target_carbs_g || 0),\n};\n\nreturn [{\n  external_user_id,\n  user_found,\n  timezone: tz,\n  month,\n  today_local,\n  targets,\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5120,
+        2928
+      ],
+      "id": "d8e546a2-03a1-4a94-907f-1b0304168300",
+      "name": "Code month_get month_ctx"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1239696434,
+          "mode": "list",
+          "cachedResultName": "Daily",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=1239696434"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -4912,
+        2928
+      ],
+      "id": "b038f6ec-9371-4c10-8176-0b5b1f151bc0",
+      "name": "GS Read Daily (month_get)",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $node[\"Code month_get month_ctx\"].json;\n\nconst external_user_id = String(ctx.external_user_id || \"\");\nconst tz = String(ctx.timezone || \"Europe/Moscow\");\nconst month = String(ctx.month || \"\");\nconst today_local = String(ctx.today_local || \"\");\n\nif (!ctx.user_found) {\n  return [{\n    ok: true,\n    found: false,\n    month,\n    timezone: tz,\n    stats: {\n      streak_days: 0,\n      days_with_entries: 0,\n      avg_calories: 0,\n      avg_protein_g: 0,\n      avg_fat_g: 0,\n      avg_carbs_g: 0,\n      pct_of_plan: 0\n    }\n  }];\n}\n\n// all Daily rows from GS Read\nconst rows = $input.all().map(i => i.json || {});\n\n// helpers\nconst hasEntry = (r) => (Number(r.meals_count || 0) > 0) || (Number(r.consumed_calories || 0) > 0);\nconst sum = (arr, key) => arr.reduce((a, r) => a + Number(r[key] || 0), 0);\n\nconst userRows = rows.filter(r => String(r.external_user_id || \"\") === external_user_id);\n\n// month rows = local_date starts with \"YYYY-MM-\"\nconst monthRows = userRows.filter(r => String(r.local_date || \"\").startsWith(month + \"-\"));\nconst monthEntryRows = monthRows.filter(hasEntry);\n\nconst days_with_entries = monthEntryRows.length;\n\nconst avg = (total) => days_with_entries ? Math.round(total / days_with_entries) : 0;\n\nconst avg_calories   = avg(sum(monthEntryRows, \"consumed_calories\"));\nconst avg_protein_g  = avg(sum(monthEntryRows, \"consumed_protein_g\"));\nconst avg_fat_g      = avg(sum(monthEntryRows, \"consumed_fat_g\"));\nconst avg_carbs_g    = avg(sum(monthEntryRows, \"consumed_carbs_g\"));\n\nconst plan = Number(ctx.targets?.target_calories || 0);\nconst pct_of_plan = plan > 0 ? Math.round((avg_calories / plan) * 100) : 0;\n\n// streak_days: consecutive days ending today with entries (overall, not только месяц)\nconst entryDates = new Set(userRows.filter(hasEntry).map(r => String(r.local_date || \"\")));\n\nfunction prevDate(dateStr) {\n  // safe: noon UTC prevents DST issues\n  const d = new Date(dateStr + \"T12:00:00Z\");\n  d.setUTCDate(d.getUTCDate() - 1);\n  const y = d.getUTCFullYear();\n  const m = String(d.getUTCMonth() + 1).padStart(2, \"0\");\n  const da = String(d.getUTCDate()).padStart(2, \"0\");\n  return `${y}-${m}-${da}`;\n}\n\nlet streak_days = 0;\nlet cur = today_local;\n\n// fallback if today_local invalid\nif (!/^\\d{4}-\\d{2}-\\d{2}$/.test(cur)) {\n  cur = new Intl.DateTimeFormat(\"en-CA\", {\n    timeZone: tz,\n    year: \"numeric\",\n    month: \"2-digit\",\n    day: \"2-digit\"\n  }).format(new Date());\n}\n\nwhile (entryDates.has(cur)) {\n  streak_days++;\n  cur = prevDate(cur);\n  if (streak_days > 999) break;\n}\n\nreturn [{\n  ok: true,\n  found: true,\n  month,\n  timezone: tz,\n  stats: {\n    streak_days,\n    days_with_entries,\n    avg_calories,\n    avg_protein_g,\n    avg_fat_g,\n    avg_carbs_g,\n    pct_of_plan\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4688,
+        2928
+      ],
+      "id": "e1db996f-55da-471d-b3e6-d105c186d258",
+      "name": "Code month_get calc_stats"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -4464,
+        2928
+      ],
+      "id": "3114a277-1d7f-486f-8a41-0bada0f85df0",
+      "name": "RESP month_get ok"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "settings_upsert",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -6160,
+        3328
+      ],
+      "id": "3cf1b2b4-9383-4e97-ac16-4a9bec0c9f05",
+      "name": "WB settings_upsert",
+      "webhookId": "09539cb2-2132-4070-9dd6-739a73f438cd"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1bcd06e2-0de3-4cd9-9bc0-972947e156cf",
+              "leftValue": "={{ String($json.method || $json.httpMethod || '').toUpperCase() }}",
+              "rightValue": "OPTIONS",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5968,
+        3328
+      ],
+      "id": "f2524d59-3764-49ee-a60a-88a52d73aefd",
+      "name": "IF OPTIONS settings_upsert"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": true }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5760,
+        3232
+      ],
+      "id": "d90a5193-7639-4ed9-a216-8f2125ad8542",
+      "name": "RESP CORS settings_upsert"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0faa742c-4146-43a5-be51-831cf21ddb45",
+              "leftValue": "={{ $json.body?.token || $json.headers?.['x-webhook-token'] || '' }}",
+              "rightValue": "82c1d601fcc0371bb17cbc69942fccc0",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -5760,
+        3376
+      ],
+      "id": "c7231f99-fa6d-40f1-b079-81a059e83070",
+      "name": "IF token settings_upsert"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"ok\": false, \"status\": \"forbidden\" }\n",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5536,
+        3392
+      ],
+      "id": "596ff609-f07a-4939-a979-472b5d6d8ed3",
+      "name": "RESP settings_upsert forbidden"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $node[\"WB settings_upsert\"].json.body || {};\n\nconst external_user_id = String(b.external_user_id || \"\").trim();\nif (!external_user_id) throw new Error(\"external_user_id required\");\n\n// 1/0, true/false, \"1\"/\"0\"\nconst to01 = (v, def=1) => {\n  if (v === undefined || v === null || v === \"\") return String(def);\n  const s = String(v).trim().toLowerCase();\n  if (s === \"1\" || s === \"true\" || s === \"yes\" || s === \"on\") return \"1\";\n  if (s === \"0\" || s === \"false\" || s === \"no\" || s === \"off\") return \"0\";\n  return String(def);\n};\n\nconst reminders_enabled = to01(b.reminders_enabled, 1);\nconst control80_enabled = to01(b.control80_enabled, 1);\n\nconst reminder_time = String(b.reminder_time || \"09:00\").trim();\nif (!/^\\d{2}:\\d{2}$/.test(reminder_time)) throw new Error(\"reminder_time must be HH:MM\");\nconst [hh, mm] = reminder_time.split(\":\").map(Number);\nif (hh < 0 || hh > 23 || mm < 0 || mm > 59) throw new Error(\"reminder_time invalid\");\n\nconst nowIso = new Date().toISOString();\n\nreturn [{\n  key: external_user_id,              // важно: key в Users = external_user_id\n  external_user_id,\n  reminders_enabled,\n  control80_enabled,\n  reminder_time,\n  updated_at: nowIso\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5536,
+        3248
+      ],
+      "id": "e61d4838-558d-41fa-a29d-43934fe4a630",
+      "name": "Code settings_upsert prepare"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4",
+          "mode": "list",
+          "cachedResultName": "Лосев FFT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 135524460,
+          "mode": "list",
+          "cachedResultName": "Users",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1w4bjnLd31OlKHcIP6DDL0MdRqSiwYjMNOCXcFS3Sbc4/edit#gid=135524460"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "key": "={{ $json.key }}",
+            "reminders_enabled": "={{ $json.reminders_enabled }}",
+            "control80_enabled": "={{ $json.control80_enabled }}",
+            "reminder_time": "={{ $json.reminder_time }}",
+            "updated_at": "={{ $json.updated_at }}"
+          },
+          "matchingColumns": [
+            "key"
+          ],
+          "schema": [
+            {
+              "id": "key",
+              "displayName": "key",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "external_user_id",
+              "displayName": "external_user_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timezone",
+              "displayName": "timezone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sex",
+              "displayName": "sex",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "age",
+              "displayName": "age",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "height_cm",
+              "displayName": "height_cm",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "weight_kg",
+              "displayName": "weight_kg",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "activity_level",
+              "displayName": "activity_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "goal",
+              "displayName": "goal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_calories",
+              "displayName": "target_calories",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_protein_g",
+              "displayName": "target_protein_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_fat_g",
+              "displayName": "target_fat_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "target_carbs_g",
+              "displayName": "target_carbs_g",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "updated_at",
+              "displayName": "updated_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reminders_enabled",
+              "displayName": "reminders_enabled",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "control80_enabled",
+              "displayName": "control80_enabled",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reminder_time",
+              "displayName": "reminder_time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "last_reminder_date",
+              "displayName": "last_reminder_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -5328,
+        3248
+      ],
+      "id": "0e531200-8508-4c8c-b431-105dba8edd43",
+      "name": "GS Update Users (settings_upsert)",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "googleApi": {
+          "id": "VIGiXZdYSwi6Qt12",
+          "name": "Лось FFT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "https://sbsite.pro"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, x-webhook-token"
+              },
+              {
+                "name": "Access-Control-Max-Age",
+                "value": "86400"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        -5120,
+        3248
+      ],
+      "id": "27f7b69a-0e48-49ef-bb6d-c84a91958ce1",
+      "name": "RESP settings_upsert ok"
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "IF OPTIONS losevfft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Analyze image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze image": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "GS Append Meal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Build Daily last_meal_text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Prepare context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare context": {
+      "main": [
+        [
+          {
+            "node": "GS Lookup Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Lookup Users": {
+      "main": [
+        [
+          {
+            "node": "Attach tz + local_date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attach tz + local_date": {
+      "main": [
+        [
+          {
+            "node": "Lookup Meals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Meals": {
+      "main": [
+        [
+          {
+            "node": "IF Meal exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Meal exists": {
+      "main": [
+        [
+          {
+            "node": "TG Already saved",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Has photo_url",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has photo_url": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF Has caption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Append Meal": {
+      "main": [
+        [
+          {
+            "node": "GS Lookup Daily",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Lookup Daily": {
+      "main": [
+        [
+          {
+            "node": "Calc Daily Upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calc Daily Upsert": {
+      "main": [
+        [
+          {
+            "node": "IF Daily exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Daily exists": {
+      "main": [
+        [
+          {
+            "node": "GS Update Daily",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Update Daily": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook profile_upsert": {
+      "main": [
+        [
+          {
+            "node": "IF OPTIONS profile_upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF token profile": {
+      "main": [
+        [
+          {
+            "node": "Respond Accepted profile",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Forbidden profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond Accepted profile": {
+      "main": [
+        [
+          {
+            "node": "Calc targets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calc targets": {
+      "main": [
+        [
+          {
+            "node": "GS Upsert User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Upsert User": {
+      "main": [
+        [
+          {
+            "node": "TG Profile saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "GS Get Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Get Users": {
+      "main": [
+        [
+          {
+            "node": "Split Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Users": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Build daily_key",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build daily_key": {
+      "main": [
+        [
+          {
+            "node": "GS Lookup Daily (digest)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Lookup Daily (digest)": {
+      "main": [
+        [
+          {
+            "node": "Compose digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose digest": {
+      "main": [
+        [
+          {
+            "node": "Send a text message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message1": {
+      "main": [
+        [
+          {
+            "node": "Split Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Has caption": {
+      "main": [
+        [
+          {
+            "node": "Analyze text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "TG Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze text": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ST Breakfast 10:00": {
+      "main": [
+        [
+          {
+            "node": "GS Get Users (breakfast)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ST Lunch 14:00": {
+      "main": [
+        [
+          {
+            "node": "GS Get Users (lunch)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ST Dinner 19:00": {
+      "main": [
+        [
+          {
+            "node": "GS Get Users (dinner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set reminder ctx (breakfast)": {
+      "main": [
+        [
+          {
+            "node": "Build daily_key (breakfast)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set reminder ctx (lunch)": {
+      "main": [
+        [
+          {
+            "node": "Build daily_key (lunch)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set reminder ctx (dinner)": {
+      "main": [
+        [
+          {
+            "node": "Build daily_key (dinner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Get Users (breakfast)": {
+      "main": [
+        [
+          {
+            "node": "Split Users (breakfast)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Users (breakfast)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Set reminder ctx (breakfast)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build daily_key (breakfast)": {
+      "main": [
+        [
+          {
+            "node": "IF local_hour breakfast",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Lookup Meals (breakfast)": {
+      "main": [
+        [
+          {
+            "node": "IF Meal already logged (breakfast)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Meal already logged (breakfast)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send reminder (breakfast)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send reminder (breakfast)": {
+      "main": [
+        [
+          {
+            "node": "Split Users (breakfast)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Get Users (lunch)": {
+      "main": [
+        [
+          {
+            "node": "Split Users (lunch)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Users (lunch)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Set reminder ctx (lunch)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build daily_key (lunch)": {
+      "main": [
+        [
+          {
+            "node": "IF local_hour lunch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Lookup Meals (lunch)": {
+      "main": [
+        [
+          {
+            "node": "IF Meal already logged (lunch)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send reminder (lunch)": {
+      "main": [
+        [
+          {
+            "node": "Split Users (lunch)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send reminder (dinner)": {
+      "main": [
+        [
+          {
+            "node": "Split Users (dinner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Get Users (dinner)": {
+      "main": [
+        [
+          {
+            "node": "Split Users (dinner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build daily_key (dinner)": {
+      "main": [
+        [
+          {
+            "node": "IF local_hour dinner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Lookup Meals (dinner)": {
+      "main": [
+        [
+          {
+            "node": "IF Meal already logged (dinner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Users (dinner)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Set reminder ctx (dinner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Meal already logged (lunch)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send reminder (lunch)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Meal already logged (dinner)": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send reminder (dinner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF local_hour breakfast": {
+      "main": [
+        [
+          {
+            "node": "GS Lookup Meals (breakfast)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF local_hour lunch": {
+      "main": [
+        [
+          {
+            "node": "GS Lookup Meals (lunch)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF local_hour dinner": {
+      "main": [
+        [
+          {
+            "node": "GS Lookup Meals (dinner)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WB profile_get": {
+      "main": [
+        [
+          {
+            "node": "IF OPTIONS profile_get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF token profile_get": {
+      "main": [
+        [
+          {
+            "node": "Code profile_get prepare",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RESP profile_get forbidden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code profile_get prepare": {
+      "main": [
+        [
+          {
+            "node": "GS Lookup Users (profile_get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Lookup Users (profile_get)": {
+      "main": [
+        [
+          {
+            "node": "Code profile_get build_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code profile_get build_response": {
+      "main": [
+        [
+          {
+            "node": "RESP profile_get ok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WB daily_get": {
+      "main": [
+        [
+          {
+            "node": "IF OPTIONS daily_get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF token daily_get": {
+      "main": [
+        [
+          {
+            "node": "Code daily_get prepare",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RESP daily_get forbidden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code daily_get prepare": {
+      "main": [
+        [
+          {
+            "node": "GS Lookup Users (daily_get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code daily_get local_date": {
+      "main": [
+        [
+          {
+            "node": "GS Lookup Daily (daily_get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Lookup Users (daily_get)": {
+      "main": [
+        [
+          {
+            "node": "Code daily_get local_date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Lookup Daily (daily_get)": {
+      "main": [
+        [
+          {
+            "node": "Code daily_get build_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code daily_get build_response": {
+      "main": [
+        [
+          {
+            "node": "RESP daily_get ok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Daily last_meal_text": {
+      "main": [
+        [
+          {
+            "node": "GS Update Daily (last_meal_text)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Update Daily (last_meal_text)": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF OPTIONS profile_get": {
+      "main": [
+        [
+          {
+            "node": "RESP CORS profile_get",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF token profile_get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF OPTIONS daily_get": {
+      "main": [
+        [
+          {
+            "node": "RESP CORS daily_get",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF token daily_get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF OPTIONS profile_upsert": {
+      "main": [
+        [
+          {
+            "node": "RESP CORS profile_upsert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF token profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF OPTIONS losevfft": {
+      "main": [
+        [
+          {
+            "node": "RESP CORS losevfft",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WB month_get": {
+      "main": [
+        [
+          {
+            "node": "IF OPTIONS month_get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF OPTIONS month_get": {
+      "main": [
+        [
+          {
+            "node": "RESP CORS month_get",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF token month_get",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF token month_get": {
+      "main": [
+        [
+          {
+            "node": "Code month_get prepare",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RESP month_get forbidden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code month_get prepare": {
+      "main": [
+        [
+          {
+            "node": "GS Lookup Users (month_get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Lookup Users (month_get)": {
+      "main": [
+        [
+          {
+            "node": "Code month_get month_ctx",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code month_get month_ctx": {
+      "main": [
+        [
+          {
+            "node": "GS Read Daily (month_get)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Read Daily (month_get)": {
+      "main": [
+        [
+          {
+            "node": "Code month_get calc_stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code month_get calc_stats": {
+      "main": [
+        [
+          {
+            "node": "RESP month_get ok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WB settings_upsert": {
+      "main": [
+        [
+          {
+            "node": "IF OPTIONS settings_upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF OPTIONS settings_upsert": {
+      "main": [
+        [
+          {
+            "node": "RESP CORS settings_upsert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF token settings_upsert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF token settings_upsert": {
+      "main": [
+        [
+          {
+            "node": "Code settings_upsert prepare",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "RESP settings_upsert forbidden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code settings_upsert prepare": {
+      "main": [
+        [
+          {
+            "node": "GS Update Users (settings_upsert)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GS Update Users (settings_upsert)": {
+      "main": [
+        [
+          {
+            "node": "RESP settings_upsert ok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d1fa856be90a855fc15f9b4169b34bda08169e735f7122b68626e46d8dfc71dc"
+  }
+}

@@ -1,0 +1,2744 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>LosevSekret</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="https://geistfont.vercel.app/geist.css">
+
+  <style>
+    :root{
+      --bg0:#070812;
+      --bg1:#0b0c16;
+
+      --glass: rgba(12, 14, 22, .78);
+      --glass2: rgba(16, 18, 28, .74);
+      --stroke: rgba(255,255,255,.12);
+
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.66);
+      --muted2: rgba(255,255,255,.54);
+
+      --shadow: 0 18px 52px rgba(0,0,0,.34);
+      --r: 22px;
+      --gap: 12px;
+
+      --ok: rgba(79,224,122,.95);
+      --bad: rgba(255,90,106,.95);
+
+      --accent: rgba(120,160,255,.35);
+      --accent2: rgba(255,255,255,.08);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      color:var(--text);
+      font-family: Geist, "Geist Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, Segoe UI, Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(900px 650px at 18% 10%, rgba(120,160,255,.18), transparent 60%),
+        radial-gradient(860px 620px at 88% 28%, rgba(255,255,255,.10), transparent 62%),
+        linear-gradient(180deg, var(--bg0) 0%, var(--bg1) 100%);
+      overflow:hidden;
+      color-scheme: dark;
+    }
+
+    .app{
+      height: 100vh;
+      height: 100dvh;
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+    }
+    .main{
+      flex: 1 1 auto;
+      min-height:0;
+      overflow-y:auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      padding: 16px 14px 16px;
+    }
+    .container{
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    .topline{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      margin-top: 4px;
+      margin-bottom: 10px;
+    }
+    .brand{
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .brandName{
+      margin:0;
+      font-size: 14px;
+      letter-spacing: -0.02em;
+      font-weight: 900;
+      opacity:.95;
+    }
+    .brandSub{
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+    .idPill{
+      display:flex;
+      align-items:center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      min-width: 0;
+    }
+    .idPill .k{
+      font-size: 11px;
+      font-weight: 850;
+      color: rgba(255,255,255,.70);
+    }
+    .idPill .v{
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      opacity:.95;
+      max-width: 120px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .hint{
+      margin-top: 10px;
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      color: rgba(255,255,255,.78);
+      font-weight: 750;
+      font-size: 12px;
+    }
+    .hint.bad{
+      background: rgba(255,90,106,.08);
+      border-color: rgba(255,90,106,.20);
+      color: rgba(255,255,255,.92);
+    }
+    .hint.ok{
+      background: rgba(79,224,122,.08);
+      border-color: rgba(79,224,122,.20);
+      color: rgba(255,255,255,.92);
+    }
+
+    .pageTitle{
+      font-size: 44px;
+      font-weight: 980;
+      letter-spacing: -0.05em;
+      margin: 14px 0 10px;
+    }
+
+    .card{
+      border-radius: 26px;
+      padding: 14px;
+      background: var(--glass);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      margin-top: 12px;
+    }
+    .sectionLabel{
+      font-weight: 900;
+      letter-spacing: .10em;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.58);
+      margin-bottom: 10px;
+    }
+
+    .dateNav{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      border-radius: 20px;
+      padding: 10px 10px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .navBtn{
+      width: 44px;
+      height: 38px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius: 16px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      font-size: 20px;
+      font-weight: 900;
+      cursor:pointer;
+      user-select:none;
+    }
+    .navCenter{
+      flex:1;
+      min-width:0;
+      text-align:center;
+      font-weight: 900;
+      letter-spacing:-0.02em;
+      font-size: 14px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .miniStats{
+      margin-top: 12px;
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .mini{
+      border-radius: 18px;
+      padding: 12px 10px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      text-align:center;
+    }
+    .mini .v{
+      font-weight: 980;
+      letter-spacing:-0.03em;
+      font-size: 22px;
+      line-height: 1;
+    }
+    .mini .k{
+      margin-top: 6px;
+      font-weight: 850;
+      font-size: 11px;
+      color: rgba(255,255,255,.70);
+    }
+    .mini .u{
+      font-weight: 800;
+      font-size: 10px;
+      color: rgba(255,255,255,.52);
+    }
+
+    .progRow{
+      margin-top: 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      font-weight: 900;
+    }
+    .progRow .left{
+      display:flex; align-items:center; gap: 8px;
+      min-width:0;
+    }
+    .progRow .left .t{
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .progRow .right{
+      color: rgba(255,255,255,.72);
+      font-weight: 850;
+      font-size: 12px;
+      white-space:nowrap;
+    }
+    .bar{
+      margin-top: 8px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.08);
+      overflow:hidden;
+    }
+    .bar > i{
+      display:block;
+      height:100%;
+      width:0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(120,160,255,.55), rgba(255,255,255,.18));
+    }
+
+    .macroRow3{
+      margin-top: 12px;
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .macroMini{
+      border-radius: 18px;
+      padding: 12px 12px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .macroMini .top{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      font-weight: 900;
+      font-size: 12px;
+      letter-spacing:-0.01em;
+      color: rgba(255,255,255,.92);
+      min-width:0;
+    }
+    .macroMini .top span:first-child{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .macroMini .sub{
+      margin-top: 6px;
+      font-weight: 850;
+      font-size: 12px;
+      color: rgba(255,255,255,.62);
+      display:flex;
+      justify-content:space-between;
+      gap: 10px;
+      white-space:nowrap;
+      min-width:0;
+    }
+    .macroMini .sub span{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .macroMini .bar{ margin-top: 8px; height: 8px; }
+    .macroMini .bar > i{ background: linear-gradient(90deg, rgba(255,255,255,.20), rgba(120,160,255,.55)); }
+
+    .diaryTop{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap: 12px;
+    }
+    .remainBox .k{
+      font-weight: 900;
+      letter-spacing: .10em;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.58);
+    }
+    .remainBox .v{
+      margin-top: 6px;
+      font-weight: 980;
+      letter-spacing:-0.05em;
+      font-size: 44px;
+      line-height: 1;
+    }
+    .remainBox .u{
+      margin-top: 4px;
+      font-weight: 800;
+      font-size: 12px;
+      color: rgba(255,255,255,.62);
+    }
+    .goalKcal{
+      text-align:right;
+      font-weight: 850;
+      font-size: 12px;
+      color: rgba(255,255,255,.62);
+      white-space:nowrap;
+    }
+
+    .btn{
+      width:100%;
+      margin-top: 12px;
+      border-radius: 18px;
+      padding: 12px 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.10);
+      color: rgba(255,255,255,.92);
+      font-weight: 950;
+      font-size: 14px;
+      cursor:pointer;
+      letter-spacing: -0.01em;
+      -webkit-appearance:none;
+      appearance:none;
+    }
+    .btn.primary{
+      background: rgba(84,168,255,.24);
+      border-color: rgba(84,168,255,.30);
+    }
+    .btn.secondary{ background: rgba(255,255,255,.07); }
+
+    select, textarea, input{
+      width:100%;
+      border-radius: 18px;
+      padding: 11px 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      color: rgba(255,255,255,.92);
+      font-size: 13.5px;
+      font-weight: 800;
+      outline:none;
+      -webkit-appearance:none;
+      appearance:none;
+    }
+    textarea{ min-height: 92px; resize: vertical; }
+
+    select{ color-scheme: dark; }
+    option{ background: #0b0c16; color: rgba(255,255,255,.92); }
+
+    .row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      padding: 12px 12px;
+      border-radius: 20px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      margin-top: 10px;
+    }
+    .row .left{ min-width:0; }
+    .row .t{
+      font-weight: 950;
+      letter-spacing:-0.02em;
+      font-size: 14px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .row .d{
+      margin-top: 4px;
+      font-weight: 800;
+      font-size: 12px;
+      color: rgba(255,255,255,.58);
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    /* FIX: Дневник → Последний приём — текст всегда влезает в поля */
+    #lastMealRow{ align-items:flex-start; }
+    #lastMealRow>div:first-child{ flex:1 1 auto; min-width:0; }
+    #lastMealRow>div:last-child{ flex:0 0 auto; min-width:0; max-width:45%; text-align:right; }
+    #lastMealRow #lmKcal,
+    #lastMealRow #lmPfc{
+      display:block;
+      max-width:100%;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    #lastMealRow #lmText{
+      white-space:normal;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+      overflow-wrap:anywhere;
+      word-break:break-word;
+    }
+
+    /* FIX: Аналитика → Месяц — статистика не вылезает за края */
+    /* FIX: Аналитика → Месяц — БЖУ (среднее) не вылезают */
+    .monthAvgPills{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    @media (max-width: 360px){
+      .monthAvgPills{ grid-template-columns: 1fr; }
+    }
+
+    .monthGrid .macroMini{ min-width:0; overflow:hidden; }
+    .monthGrid .sub{ white-space: normal; min-width:0; }
+    .monthGrid .sub span:first-child{
+      min-width:0;
+      overflow:hidden;
+      display:-webkit-box;
+      -webkit-line-clamp:2;
+      -webkit-box-orient:vertical;
+    }
+    .monthGrid .sub span:last-child{ white-space:nowrap; }
+
+    .monthAvgTop{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; min-width:0; }
+    .monthAvgTop > div{ min-width:0; }
+    .monthPct{
+      max-width: 45%;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #mAvgKcal{ font-size: clamp(34px, 8vw, 44px) !important; }
+
+    @media (max-width: 380px){
+      .monthGrid{ grid-template-columns: repeat(2, 1fr); }
+      .monthGrid .macroMini:nth-child(3){ grid-column: 1 / -1; }
+      .monthPct{ max-width: 55%; }
+    }
+
+    .switch{
+      width: 52px;
+      height: 32px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border: 1px solid rgba(255,255,255,.12);
+      position:relative;
+      cursor:pointer;
+      flex:0 0 auto;
+    }
+    .switch i{
+      position:absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      left: 3px;
+      width: 26px;
+      height: 26px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.88);
+      box-shadow: 0 10px 20px rgba(0,0,0,.20);
+      transition: left .18s ease, background .18s ease;
+    }
+    .switch.on{
+      background: rgba(79,224,122,.28);
+      border-color: rgba(79,224,122,.30);
+    }
+    .switch.on i{ left: 23px; background: rgba(255,255,255,.95); }
+
+    .notifyTimeTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+    }
+    .notifyTimeLeft{ flex:1; min-width:0; }
+    .notifyTimeValue{
+      font-weight:980;
+      font-size: clamp(34px, 8vw, 44px);
+      letter-spacing: -0.05em;
+      line-height: 1;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .notifyTimeSub{
+      margin-top: 6px;
+      color: rgba(255,255,255,.62);
+      font-weight: 750;
+      font-size: 12px;
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .notifyDot{
+      flex:0 0 auto;
+      width:14px;
+      height:14px;
+      border-radius:999px;
+      background:rgba(79,224,122,.85);
+      box-shadow:0 0 0 6px rgba(79,224,122,.12);
+    }
+
+    .profileTop{
+      padding: 12px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+    }
+    .profileTopGrid{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      text-align:center;
+    }
+    .ptItem{
+      padding: 10px 8px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .ptItem .k{
+      font-size: 11px;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.60);
+    }
+    .ptItem .v{
+      margin-top: 6px;
+      font-size: 20px;
+      font-weight: 980;
+      letter-spacing: -0.03em;
+      white-space:nowrap;
+    }
+    .goalRow{
+      margin-top: 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .goalRow .k{color: rgba(255,255,255,.66); font-weight: 850; font-size: 12px;}
+    .goalRow .v{font-weight: 950; letter-spacing: -0.02em; font-size: 13px; display:flex; align-items:center; gap:8px;}
+
+    .normGrid{
+      margin-top: 12px;
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 12px;
+      align-items:stretch;
+    }
+    .kcalCard{
+      border-radius: 22px;
+      padding: 14px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      position: relative;
+      overflow:hidden;
+    }
+    .kcalCard:before{
+      content:"";
+      position:absolute;
+      inset:-60px -60px auto auto;
+      width: 160px;
+      height: 160px;
+      background: radial-gradient(circle at 30% 30%, rgba(255,90,106,.25), transparent 60%);
+      opacity: .9;
+      transform: rotate(15deg);
+    }
+    .kcalCard .k{font-weight: 950; letter-spacing:.10em; font-size: 11px; text-transform: uppercase; color: rgba(255,90,106,.90); position: relative;}
+    .kcalCard .v{margin-top: 8px; font-size: 44px; line-height:.95; font-weight: 980; letter-spacing: -0.05em; position: relative;}
+    .kcalCard .u{margin-top: 4px; font-size: 12px; font-weight: 800; color: rgba(255,255,255,.68); position: relative;}
+
+    .macroPills{
+      display:grid;
+      gap: 10px;
+      min-width:0;
+    }
+    .pill{
+      border-radius: 18px;
+      padding: 12px 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.06);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      font-weight: 900;
+      min-width:0;
+      overflow:hidden;
+    }
+    .pill .k{color: rgba(255,255,255,.86); font-size: 13px; letter-spacing: -0.01em;; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pill .v{color: rgba(255,255,255,.92); font-size: 13px; letter-spacing: -0.01em; white-space:nowrap;; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .pill.p{ background: rgba(84,168,255,.18); border-color: rgba(84,168,255,.22); }
+    .pill.f{ background: rgba(255,170,60,.14); border-color: rgba(255,170,60,.18); }
+    .pill.c{ background: rgba(79,224,122,.14); border-color: rgba(79,224,122,.18); }
+
+    .acc{
+      border-radius: 20px;
+      padding: 12px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      margin-top: 10px;
+    }
+    .accTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .accTop .t{
+      font-weight: 950;
+      letter-spacing:-0.02em;
+      font-size: 14px;
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .accTop .s{
+      margin-top: 3px;
+      font-weight: 800;
+      font-size: 12px;
+      color: rgba(255,255,255,.58);
+    }
+    .accBody{
+      margin-top: 10px;
+      display:none;
+      color: rgba(255,255,255,.78);
+      font-weight: 750;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .acc.open .accBody{ display:block; }
+
+    .tabs{
+      flex: 0 0 auto;
+      padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+      background: rgba(0,0,0,.25);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-top: 1px solid rgba(255,255,255,.10);
+    }
+    .tabsInner{
+      max-width: 760px;
+      margin: 0 auto;
+      border-radius: 28px;
+      padding: 10px 10px;
+      background: rgba(12, 14, 22, .72);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: 0 18px 52px rgba(0,0,0,.30);
+      display:grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0;
+    }
+    .tabbtn{
+      border: 0;
+      background: transparent;
+      color: rgba(255,255,255,.78);
+      border-radius: 18px;
+      padding: 10px 6px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      gap: 0;
+      cursor:pointer;
+      -webkit-appearance:none;
+      appearance:none;
+      user-select:none;
+      min-width:0;
+    }
+    .tabbtn svg{ width: 22px; height: 22px; opacity:.95; }
+    .tabbtn .lbl{display:none !important;}
+    .tabbtn.active{
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.10);
+      color: rgba(255,255,255,.92);
+    }
+    .tabbtn.disabled{
+      opacity: .38;
+      pointer-events:auto;
+    }
+
+    .lockFull{
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      background: rgba(0,0,0,.52);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .lockFull.show{display:flex;}
+    .lockBox{
+      width: min(640px, 94vw);
+      border-radius: 26px;
+      padding: 16px;
+      background: var(--glass);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: var(--shadow);
+      text-align:center;
+    }
+    .lockBox .t{
+      font-weight: 980;
+      letter-spacing:-0.03em;
+      font-size: 16px;
+    }
+    .lockBox .d{
+      margin-top: 8px;
+      color: rgba(255,255,255,.70);
+      font-weight: 800;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .loading{
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      background: rgba(0,0,0,.50);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .loading.show{display:flex;}
+    .loadingBox{
+      width: min(640px, 94vw);
+      border-radius: 26px;
+      padding: 16px;
+      background: var(--glass);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: var(--shadow);
+      text-align:center;
+    }
+    .spinner{
+      width: 18px; height: 18px;
+      border-radius: 999px;
+      border: 2px solid rgba(255,255,255,.22);
+      border-top-color: rgba(255,255,255,.82);
+      margin: 0 auto 10px;
+      animation: spin 0.85s linear infinite;
+    }
+    @keyframes spin{to{transform: rotate(360deg)}}
+
+    .sheet{
+      position: fixed;
+      inset: 0;
+      z-index: 65;
+      display:none;
+      align-items:flex-end;
+      justify-content:center;
+      background: rgba(0,0,0,.45);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+    }
+    .sheet.show{display:flex;}
+    .sheetBox{
+      width: min(760px, 96vw);
+      border-radius: 26px;
+      padding: 14px;
+      background: var(--glass);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: var(--shadow);
+    }
+    .sheetTop{
+      display:flex; align-items:center; justify-content:space-between; gap: 10px;
+      margin-bottom: 10px;
+    }
+    .sheetTop .t{font-weight: 980; font-size: 14px; letter-spacing:-0.01em;}
+    .xbtn{
+      width: 40px; height: 34px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.08);
+      color: rgba(255,255,255,.92);
+      font-weight: 980;
+      cursor:pointer;
+      -webkit-appearance:none;
+      appearance:none;
+    }
+
+    .hide{display:none !important;}
+
+
+    /* PHOTO: загрузка фото для приёма пищи (не ломает текстовый сценарий) */
+    .photoRow{
+      margin-top: 10px;
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 10px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.08);
+      min-width:0;
+    }
+    .photoPreview{
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      object-fit: cover;
+      border: 1px solid rgba(255,255,255,.10);
+      box-shadow: 0 10px 24px rgba(0,0,0,.25);
+      flex: 0 0 auto;
+      background: rgba(255,255,255,.04);
+    }
+    .photoMeta{
+      flex: 1 1 auto;
+      min-width:0;
+      font-weight: 850;
+      font-size: 12px;
+      color: rgba(255,255,255,.70);
+      white-space: nowrap;
+      overflow:hidden;
+      text-overflow: ellipsis;
+    }
+    .photoClear{
+      width: 40px;
+      height: 34px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.08);
+      color: rgba(255,255,255,.92);
+      font-weight: 980;
+      cursor:pointer;
+      -webkit-appearance:none;
+      appearance:none;
+      flex: 0 0 auto;
+    }
+
+    @media (max-width: 420px){
+      .miniStats{ gap: 8px; }
+      .mini .v{ font-size: 20px; }
+      .macroRow3{ gap: 8px; }
+      .macroMini .top{ font-size: 11px; }
+    }
+
+    /* FINAL: цифры (Б/Ж/У/ккал) всегда влезают в карточки */
+    .mini .v{
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: clamp(18px, 5.5vw, 22px);
+    }
+    .progRow .right{
+      max-width: 52%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: clamp(11px, 3.2vw, 12px);
+    }
+    .macroMini .top span:last-child{
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 55%;
+      text-align:right;
+    }
+    .ptItem .v{
+      overflow:hidden;
+      text-overflow:ellipsis;
+      max-width:100%;
+    }
+
+  
+
+    /* FIX: не обрезаем текст/цифры в карточках на iOS + узких экранах */
+    html{
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
+    /* Mini stats (4 плитки в Аналитике) */
+    .mini{ padding-bottom: 14px; }
+    .mini .v{ line-height: 1.08; overflow: visible; text-overflow: clip; }
+    .mini .k, .mini .u{ line-height: 1.2; }
+
+    /* Macro mini cards (Б/Ж/У и Месяц) */
+    .macroMini{ padding-bottom: 14px; }
+    .macroMini .top{ line-height: 1.15; }
+    .macroMini .top span:first-child{
+      flex: 1 1 auto;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+    }
+    .macroMini .top span:last-child{
+      max-width: none;
+      overflow: visible;
+      text-overflow: clip;
+    }
+    .macroMini .sub{ line-height: 1.2; }
+    .macroMini .sub span{
+      overflow: visible;
+      text-overflow: clip;
+    }
+
+    /* Плашки средних Б/Ж/У за месяц (pill) */
+    .pill{
+      overflow: visible;
+      flex-wrap: wrap;
+      padding-bottom: 13px;
+    }
+    .pill .k{
+      flex: 1 1 auto;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+      line-height: 1.2;
+    }
+    .pill .v{
+      flex: 0 0 auto;
+      line-height: 1.2;
+    }
+
+    /* Остаток/Цель — чуть больше воздуха по вертикали */
+    .remainBox .v, .kcalCard .v{ line-height: 1.02; }
+
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <main class="main" id="mainScroll">
+      <div class="container">
+        <div class="topline">
+          <div class="brand">
+            <div class="brandName">LosevSekret</div>
+            <div class="brandSub">Трекер питания</div>
+          </div>
+          <div class="idPill" id="idPill" title="">
+            <div class="k">ID</div>
+            <div class="v" id="uidPill">—</div>
+          </div>
+        </div>
+
+        <div class="hint bad hide" id="idWarn"></div>
+
+        <!-- ANALYTICS -->
+        <section id="tabAnalytics">
+          <div class="pageTitle">Аналитика</div>
+
+          <div class="card">
+            <div class="dateNav">
+              <div class="navBtn" id="aPrev">‹</div>
+              <div class="navCenter" id="aDateLabel">Сегодня</div>
+              <div class="navBtn" id="aNext">›</div>
+            </div>
+
+            <div class="miniStats">
+              <div class="mini">
+                <div class="v" id="aKcal">0</div>
+                <div class="k">Калории</div>
+                <div class="u">ккал</div>
+              </div>
+              <div class="mini">
+                <div class="v" id="aProt">0</div>
+                <div class="k">Белки</div>
+                <div class="u">г</div>
+              </div>
+              <div class="mini">
+                <div class="v" id="aFat">0</div>
+                <div class="k">Жиры</div>
+                <div class="u">г</div>
+              </div>
+              <div class="mini">
+                <div class="v" id="aCarb">0</div>
+                <div class="k">Углеводы</div>
+                <div class="u">г</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="sectionLabel">Прогресс дня</div>
+
+            <div class="progRow">
+              <div class="left"><span>🔥</span><span class="t">Калории</span></div>
+              <div class="right"><span id="pKcalC">0</span>/<span id="pKcalT">0</span> <span id="pKcalPct">0</span>%</div>
+            </div>
+            <div class="bar"><i id="barKcal"></i></div>
+
+            <div class="progRow">
+              <div class="left"><span>🥩</span><span class="t">Белки</span></div>
+              <div class="right"><span id="pProtC">0</span>/<span id="pProtT">0</span> <span id="pProtPct">0</span>%</div>
+            </div>
+            <div class="bar"><i id="barProt"></i></div>
+
+            <div class="progRow">
+              <div class="left"><span>🧈</span><span class="t">Жиры</span></div>
+              <div class="right"><span id="pFatC">0</span>/<span id="pFatT">0</span> <span id="pFatPct">0</span>%</div>
+            </div>
+            <div class="bar"><i id="barFat"></i></div>
+
+            <div class="progRow">
+              <div class="left"><span>🥦</span><span class="t">Углеводы</span></div>
+              <div class="right"><span id="pCarbC">0</span>/<span id="pCarbT">0</span> <span id="pCarbPct">0</span>%</div>
+            </div>
+            <div class="bar"><i id="barCarb"></i></div>
+
+            <div class="hint hide" id="analyticsHint"></div>
+          </div>
+
+          <div class="card">
+            <div class="sectionLabel">Месяц</div>
+
+            <div class="macroRow3 monthGrid" style="margin-top:12px;">
+              <div class="macroMini">
+                <div class="top"><span>🔥 Серия дней</span><span id="mStreak">0</span></div>
+                <div class="sub"><span>подряд с записями</span><span></span></div>
+              </div>
+              <div class="macroMini">
+                <div class="top"><span>📝 Дней с записями</span><span id="mDays">0</span></div>
+                <div class="sub"><span>за месяц</span><span></span></div>
+              </div>
+              <div class="macroMini">
+                <div class="top"><span>📈 От плана</span><span><span id="mPct">0</span>%</span></div>
+                <div class="sub"><span>средние ккал</span><span></span></div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:12px;">
+              <div class="monthAvgTop" style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;">
+                <div>
+                  <div class="sectionLabel" style="margin:0 0 8px;">Среднее за месяц</div>
+                  <div style="font-weight:980;letter-spacing:-0.05em;font-size:44px;line-height:1;" id="mAvgKcal">0</div>
+                  <div style="margin-top:6px;color:rgba(255,255,255,.62);font-weight:800;font-size:12px;">ккал в день</div>
+                </div>
+                <div class="monthPct" style="font-weight:950;color:rgba(120,160,255,.92);white-space:nowrap;"><span id="mPct2">0</span>% от плана</div>
+              </div>
+
+              <div class="macroRow3 monthAvgPills" style="margin-top:12px;">
+                <div class="pill p"><div class="k">Белки</div><div class="v"><span id="mAvgP">0</span>г</div></div>
+                <div class="pill f"><div class="k">Жиры</div><div class="v"><span id="mAvgF">0</span>г</div></div>
+                <div class="pill c"><div class="k">Углеводы</div><div class="v"><span id="mAvgC">0</span>г</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- DIARY -->
+        <section id="tabDiary" class="hide">
+          <div class="pageTitle">Дневник</div>
+
+          <div class="card">
+            <div class="dateNav">
+              <div class="navBtn" id="dPrev">‹</div>
+              <div class="navCenter" id="dDateLabel">Сегодня</div>
+              <div class="navBtn" id="dNext">›</div>
+            </div>
+
+            <div class="card" style="margin-top:12px;">
+              <div class="diaryTop">
+                <div class="remainBox">
+                  <div class="k">Остаток ккал</div>
+                  <div class="v" id="dRemainKcal">0</div>
+                  <div class="u">ккал</div>
+                </div>
+                <div class="goalKcal">Цель: <span id="dTargetKcal">0</span> ккал</div>
+              </div>
+
+              <div class="macroRow3" style="margin-top:12px;">
+                <div class="macroMini">
+                  <div class="top"><span>Белки</span><span id="dProtC">0</span></div>
+                  <div class="sub"><span><span id="dProtC2">0</span>/<span id="dProtT">0</span>г</span><span></span></div>
+                  <div class="bar"><i id="dBarP"></i></div>
+                </div>
+                <div class="macroMini">
+                  <div class="top"><span>Жиры</span><span id="dFatC">0</span></div>
+                  <div class="sub"><span><span id="dFatC2">0</span>/<span id="dFatT">0</span>г</span><span></span></div>
+                  <div class="bar"><i id="dBarF"></i></div>
+                </div>
+                <div class="macroMini">
+                  <div class="top"><span>Углеводы</span><span id="dCarbC">0</span></div>
+                  <div class="sub"><span><span id="dCarbC2">0</span>/<span id="dCarbT">0</span>г</span><span></span></div>
+                  <div class="bar"><i id="dBarC"></i></div>
+                </div>
+              </div>
+            </div>
+
+            <button class="btn primary" id="btnOpenSheet">＋ Добавить еду</button>
+
+            <div class="sectionLabel" style="margin-top:14px;">Съедено за день</div>
+            <div class="card" style="margin-top:10px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                <div style="font-weight:980;letter-spacing:-0.02em;">Последний приём</div>
+                <div style="color:rgba(255,255,255,.62);font-weight:850;font-size:12px;" id="lmAt">—</div>
+              </div>
+
+              <div style="margin-top:10px;display:grid;grid-template-columns:1fr;gap:10px;">
+                <div class="row" id="lastMealRow" style="margin-top:0;">
+                  <div class="left">
+                    <div class="t" id="lmType">—</div>
+                    <div class="d" id="lmText">—</div>
+                  </div>
+                  <div style="text-align:right;">
+                    <div style="font-weight:980;letter-spacing:-0.02em;" id="lmKcal">—</div>
+                    <div style="margin-top:4px;font-size:12px;color:rgba(255,255,255,.62);font-weight:850;" id="lmPfc">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="hint hide" id="diaryHint"></div>
+          </div>
+        </section>
+
+    <section id="tabWorkouts" class="hide">
+      <div class="pageTitle">Тренировки</div>
+
+      <div class="card">
+        <div class="small">
+          Раздел в разработке. Попросите Сашу добавить его побыстрее.
+        </div>
+      </div>
+    </section>
+
+
+
+        <!-- PROFILE -->
+        <section id="tabProfile" class="hide">
+          <div class="pageTitle">Профиль</div>
+
+          <div class="card" id="profileFormBlock">
+            <div class="hint">Заполни профиль — после этого откроются остальные разделы.</div>
+
+            <div style="margin-top:12px;">
+              <div class="sectionLabel">Пол</div>
+              <select id="sex">
+                <option value="">Выбери</option>
+                <option value="male">Мужской</option>
+                <option value="female">Женский</option>
+              </select>
+            </div>
+
+            <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div>
+                <div class="sectionLabel">Возраст</div>
+                <input id="age" inputmode="numeric" placeholder="24" />
+              </div>
+              <div>
+                <div class="sectionLabel">Рост (см)</div>
+                <input id="height_cm" inputmode="numeric" placeholder="185" />
+              </div>
+            </div>
+
+            <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+              <div>
+                <div class="sectionLabel">Вес (кг)</div>
+                <input id="weight_kg" inputmode="numeric" placeholder="например: 82" />
+              </div>
+              <div>
+                <div class="sectionLabel">Активность</div>
+                <select id="activity_level">
+                  <option value="">Выбери</option>
+                  <option value="1.2">Низкая</option>
+                  <option value="1.375">Лёгкая</option>
+                  <option value="1.55">Средняя</option>
+                  <option value="1.725">Высокая</option>
+                  <option value="1.9">Очень высокая</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="margin-top:12px;">
+              <div class="sectionLabel">Цель</div>
+              <select id="goal">
+                <option value="">Выбери</option>
+                <option value="lose">Снизить</option>
+                <option value="maintain">Поддержание</option>
+                <option value="gain">Набрать</option>
+              </select>
+            </div>
+
+            <button class="btn primary" id="btnSaveProfile">Сохранить</button>
+            <div class="hint bad hide" id="profileFormHint"></div>
+          </div>
+
+          <div class="card hide" id="profileReadyBlock">
+            <div class="profileTop">
+              <div class="profileTopGrid">
+                <div class="ptItem">
+                  <div class="k">Вес</div>
+                  <div class="v" id="pWeight">—</div>
+                </div>
+                <div class="ptItem">
+                  <div class="k">Рост</div>
+                  <div class="v" id="pHeight">—</div>
+                </div>
+                <div class="ptItem">
+                  <div class="k">Возраст</div>
+                  <div class="v" id="pAge">—</div>
+                </div>
+              </div>
+
+              <div class="goalRow">
+                <div class="k">Цель:</div>
+                <div class="v"><span id="pGoalIcon">🏋️</span><span id="pGoal">—</span></div>
+              </div>
+            </div>
+
+            <div class="sectionLabel" style="margin-top:14px;">Твоя норма на день</div>
+            <div class="normGrid">
+              <div class="kcalCard">
+                <div class="k">🔥 Калории</div>
+                <div class="v" id="tCal">0</div>
+                <div class="u">ккал</div>
+              </div>
+              <div class="macroPills">
+                <div class="pill p"><div class="k">Белки</div><div class="v"><span id="tProt">0</span> г</div></div>
+                <div class="pill f"><div class="k">Жиры</div><div class="v"><span id="tFat">0</span> г</div></div>
+                <div class="pill c"><div class="k">Углеводы</div><div class="v"><span id="tCarb">0</span> г</div></div>
+              </div>
+            </div>
+
+            <button class="btn secondary" id="btnEditProfile">✎ Обновить вес или цель</button>
+            <div class="hint" id="profileHint"></div>
+          </div>
+        </section>
+
+        <!-- NOTIFICATIONS -->
+        <section id="tabNotify" class="hide">
+          <div class="pageTitle">Уведомления</div>
+
+          <div class="card">
+            <div class="row" style="margin-top:0">
+              <div class="left">
+                <div class="t">Напоминания о еде</div>
+                <div class="d">Напомнить занести приём пищи</div>
+              </div>
+              <div class="switch" id="swRem"><i></i></div>
+            </div>
+
+            <div class="row">
+              <div class="left">
+                <div class="t">Контроль 80% нормы</div>
+                <div class="d">Сигнал, когда дошёл до 80%</div>
+              </div>
+              <div class="switch" id="sw80"><i></i></div>
+            </div>
+
+            <div class="card" style="margin-top:12px;">
+              <div class="sectionLabel">Время напоминаний</div>
+
+              <div class="notifyTimeTop">
+                <div class="notifyTimeLeft">
+                  <div class="notifyTimeValue" id="remTime">09:00</div>
+                  <div class="notifyTimeSub">Напоминание записать еду</div>
+                </div>
+                <div class="notifyDot" title="Статус"></div>
+              </div>
+
+              <input id="remTimeInput" type="time" value="09:00" style="margin-top:12px;" />
+              <button class="btn secondary" id="btnSaveNotify">✎ Изменить время</button>
+
+              <div class="hint" id="notifyHint"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- RECIPES -->
+            <section id="tabRecipes" class="hide">
+      <div class="pageTitle">Рецепты</div>
+
+      <div class="card">
+        <div class="small" style="margin-bottom:10px;">Выбери блюдо — откроется рецепт.</div>
+        <div class="accWrap">
+        <div class="acc" data-acc="r1">
+          <div class="accTop">
+            <div>
+              <div class="t">Пирожки «-8 килограммов»</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">446 / Б33 / Ж20 / У31</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Отварные яйца — 2 шт</li>
+<li>Большой пучок зелёного лука</li>
+<li>Соль — щепотка</li>
+<li>Сырое яйцо — 1 шт</li>
+<li>Мука — 2 ст. л</li>
+<li>Лёгкий сыр 15% — 50 г</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Сварить одно яйцо, нарезать мелко.</li>
+<li>Зелёный лук измельчить.</li>
+<li>Смешать варёное яйцо, зелёный лук, сырое яйцо, тёртый лёгкий сыр, рисовую муку, соль и приправу.</li>
+<li>Перемешать до однородности.</li>
+<li>Сформировать шарики, придать форму котлет.</li>
+<li>Обжарить на сковороде с двух сторон до золотистой корочки.</li>
+<li>*Совет:** замени рисовую муку на овсяную для другой текстуры.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r2">
+          <div class="accTop">
+            <div>
+              <div class="t">Роллы без риса и нори</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">452 / Б22 / Ж35 / У16</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Огурец длинный — 1–2 шт</li>
+<li>Сыр творожный — 60 г</li>
+<li>Красная рыба — 80 г</li>
+<li>Авокадо — 1/2 шт</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Нарежь огурец длинными тонкими слайсами.</li>
+<li>Промокни влагу салфеткой.</li>
+<li>Намажь творожный сыр.</li>
+<li>Выложи рыбу и авокадо.</li>
+<li>Сверни рулетом и нарежь.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r3">
+          <div class="accTop">
+            <div>
+              <div class="t">Мини-пицца «без лишних калорий»</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">327 / Б44 / Ж13 / У6</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Куриный фарш — 100 г</li>
+<li>Яйцо — 2 шт</li>
+<li>Соль, специи — по вкусу</li>
+<li>Помидор — 100 г</li>
+<li>Сыр лёгкий 17% — 30 г</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Смешать фарш, яйца, соль и специи.</li>
+<li>Выложить смесь на сковороду, сформировав круглую основу.</li>
+<li>Сверху выложить помидоры и сыр.</li>
+<li>Жарить под крышкой 10–15 минут.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r4">
+          <div class="accTop">
+            <div>
+              <div class="t">Белковый салат с тунцом и творогом</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">307 / Б47 / Ж10 / У10</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Тунец — 140 г</li>
+<li>Яйцо — 1 шт</li>
+<li>Огурец — 1 шт</li>
+<li>Творог 5% — 60 г</li>
+<li>Зелень — по вкусу</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Слить лишнюю жидкость из тунца.</li>
+<li>Смешать тунец, нарезанное яйцо, огурец, творог и зелень.</li>
+<li>Перемешать и подавать.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r5">
+          <div class="accTop">
+            <div>
+              <div class="t">Куриный пирог</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">670 / Б82 / Ж24 / У26</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Куриное филе — 350 г</li>
+<li>Яйцо — 2 шт</li>
+<li>Лаваш/рисовая мука — 2 ст. л</li>
+<li>Лук репчатый — 1 шт</li>
+<li>Помидор — 1 шт</li>
+<li>Лёгкий сыр (15–17%) — 50 г</li>
+<li>Греческий йогурт — 2 ст. л</li>
+<li>Соль, перец, специи — по вкусу</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Нарезать куриное филе и лук кубиками.</li>
+<li>Смешать мясо, лук, яйца, йогурт, специи и муку.</li>
+<li>Добавить нарезанный помидор и половину сыра, перемешать.</li>
+<li>Выложить массу в форму.</li>
+<li>Сверху присыпать оставшимся сыром.</li>
+<li>Запекать при 180°C около 25–30 минут.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r6">
+          <div class="accTop">
+            <div>
+              <div class="t">Сырная лепёшка</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">452 / Б57 / Ж16 / У20</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>—</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Смешать творог, яйцо, сыр, муку и соль.</li>
+<li>Выложить тонким слоем на пергамент.</li>
+<li>Запекать 15–20 минут при 190°C до золотистой корочки.</li>
+<li>Достать, слегка остудить и смазать йогуртом.</li>
+<li>Выложить помидор, авокадо и индейку.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r7">
+          <div class="accTop">
+            <div>
+              <div class="t">Фитнес-оливье</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">698 / Б58 / Ж42 / У25</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Огурец — 1 шт</li>
+<li>Авокадо — 1 шт</li>
+<li>Яйца варёные — 2 шт</li>
+<li>Красная рыба — 150 г</li>
+<li>Греческий йогурт — 2 ст. л</li>
+<li>Горчица — 1/2 ст. л</li>
+<li>Сок лимона — по вкусу</li>
+<li>Соль — щепотка</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Нарезать огурец, авокадо, яйца и рыбу кубиками.</li>
+<li>Смешать йогурт, горчицу, лимонный сок и соль.</li>
+<li>Соединить всё и перемешать.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r8">
+          <div class="accTop">
+            <div>
+              <div class="t">Высокобелковая запеканка</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">1080 / Б155 / Ж40 / У22</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Филе бедра индейки — 700 г</li>
+<li>Цукини — 250 г</li>
+<li>Лёгкий сыр — 80 г</li>
+<li>Помидор — 1 шт</li>
+<li>Лук — 1 шт</li>
+<li>Яйца — 3 шт</li>
+<li>Греческий йогурт/сметана 2% — 2 ст. л</li>
+<li>Соль, специи — по вкусу</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Взбить яйца с йогуртом, сыром, солью и специями.</li>
+<li>Добавить нарезанное филе индейки, перемешать.</li>
+<li>На дно формы выложить кружочки цукини.</li>
+<li>Залить смесь, сверху — кольца лука и томаты.</li>
+<li>Посыпать сыром.</li>
+<li>В духовку на 35 минут при 190°C.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r9">
+          <div class="accTop">
+            <div>
+              <div class="t">Морковные палочки (хрустящие)</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">165 / Б5 / Ж7 / У20</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Морковь — 4–5 шт</li>
+<li>Оливковое масло — 1–2 ст. л</li>
+<li>Копчёная паприка — 1/2 ч. л</li>
+<li>Петрушка/базилик — по вкусу</li>
+<li>Сушёный чеснок — 1/2 ч. л</li>
+<li>Соль — щепотка</li>
+<li>*Соус:**</li>
+<li>Греческий йогурт — 3 ст. л</li>
+<li>Томатный соус — 1 ст. л</li>
+<li>Соль — по вкусу</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Нарезать морковь крупной соломкой.</li>
+<li>Смешать с маслом, специями и солью.</li>
+<li>Разложить на противень одним слоем.</li>
+<li>Запекать 20–30 мин при 180°C до лёгкой хрустинки.</li>
+<li>Смешать соус.</li>
+<li>Подавать, макая морковь в соус.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r10">
+          <div class="accTop">
+            <div>
+              <div class="t">Королевские яйца с икрой</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">210 / Б19 / Ж14 / У2</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Яйца — 4 шт</li>
+<li>Греческий йогурт — 80 г</li>
+<li>Икра — 30 г</li>
+<li>Соль — щепотка</li>
+<li>Зелень — по вкусу</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Яйца сварить и разрезать.</li>
+<li>Желтки размять с йогуртом и солью.</li>
+<li>Наполнить половинки.</li>
+<li>Сверху — икра и зелень.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r11">
+          <div class="accTop">
+            <div>
+              <div class="t">Салат с сёмгой</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">510 / Б55 / Ж33 / У12</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Сёмга — 250 г</li>
+<li>Романо/айсберг — 100 г</li>
+<li>Черри — 120 г</li>
+<li>Огурец — 100 г</li>
+<li>Лимонный сок — 10 мл</li>
+<li>Оливковое масло — 5 г</li>
+<li>Соль — щепотка</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Сёмгу запечь 15–20 мин при 180°C, слегка «раскрошить».</li>
+<li>Овощи нарезать.</li>
+<li>Смешать с соком лимона и маслом.</li>
+<li>Добавить сёмгу, посолить.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r12">
+          <div class="accTop">
+            <div>
+              <div class="t">Тосты с тунцом</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">560 / Б50 / Ж9 / У50</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Хлеб (гречневый/цельнозерновой) — 100 г</li>
+<li>Тунец в собственном соку — 1 банка</li>
+<li>Лук красный — 30 г</li>
+<li>Кинза — 5 г</li>
+<li>Горчица — 5 г</li>
+<li>Майонез «лёгкий» — 15 г</li>
+<li>Сок лимона — 10 мл</li>
+<li>Соль, перец — по вкусу</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Слить тунец.</li>
+<li>Мелко нарезать лук и кинзу.</li>
+<li>Смешать тунец + лук + кинза + горчица + майонез + лимон.</li>
+<li>Намазать на тосты.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r13">
+          <div class="accTop">
+            <div>
+              <div class="t">Белковая паста</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">650 / Б65 / Ж22 / У42</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Спагетти — 60 г (сух.)</li>
+<li>Куриная грудка — 200 г</li>
+<li>Шпинат — 50 г</li>
+<li>Базилик — 10 г</li>
+<li>Чеснок — 1 зуб</li>
+<li>Пармезан — 35 г</li>
+<li>Оливковое масло — 1 ч. л</li>
+<li>Соль, перец — по вкусу</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Отварить спагетти до al dente.</li>
+<li>Грудку нарезать и обжарить 2–3 мин/стор.</li>
+<li>Добавить чеснок.</li>
+<li>Ввести шпинат и базилик, перемешать.</li>
+<li>Соединить с пастой и пармезаном.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r14">
+          <div class="accTop">
+            <div>
+              <div class="t">Тако с телятиной</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">450 / Б50 / Ж10 / У40</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Тортильи кукурузные — 2 шт</li>
+<li>Фарш телятины — 160 г</li>
+<li>Лук красный — 40 г</li>
+<li>Помидор — 80 г</li>
+<li>Кинза — 5 г</li>
+<li>Соль, перец — по вкусу</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Обжарить фарш с луком до готовности.</li>
+<li>Прогреть тортильи.</li>
+<li>Наполнить фаршем и томатом, присыпать кинзой.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r15">
+          <div class="accTop">
+            <div>
+              <div class="t">Сёмга с бататом</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">690 / Б56 / Ж33 / У68</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Филе сёмги — 270 г</li>
+<li>Батат — 300 г</li>
+<li>Соль, перец — по вкусу</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Батат нарезать.</li>
+<li>Всё выложить на пергамент.</li>
+<li>Запечь 15–20 мин при 180°C.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r16">
+          <div class="accTop">
+            <div>
+              <div class="t">Дорадо с лимоном</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">430 / Б60 / Ж12 / У12</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Дорадо (филе) — 250 г</li>
+<li>Брокколи — 230 г</li>
+<li>Лимон — 1/2 шт</li>
+<li>Приправа для рыбы — по вкусу</li>
+<li>Оливковое масло — 1 ч. л</li>
+<li>Соль — щепотка</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Рыбу приправить, накрыть ломтиками лимона.</li>
+<li>Запечь 20 мин при 180°C.</li>
+<li>Брокколи отварить до мягкости.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r17">
+          <div class="accTop">
+            <div>
+              <div class="t">Салат из тунца</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">300 / Б30 / Ж10 / У15</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Тунец в соке (без жидкости) — 130 г</li>
+<li>Авокадо — 1/2 шт</li>
+<li>Шпинат + руккола — 70 г</li>
+<li>Лук красный — 20 г</li>
+<li>Сок лимона — 10 мл</li>
+<li>Оливковое масло — 1 ч. л</li>
+<li>Соль, перец — по вкусу</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Всё нарезать.</li>
+<li>Смешать с лимоном и маслом.</li>
+<li>Посолить/поперчить.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r18">
+          <div class="accTop">
+            <div>
+              <div class="t">Индейка под заливкой</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">450 / Б65 / Ж13 / У15</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Филе индейки — 250 г</li>
+<li>Болгарский перец — 120 г</li>
+<li>Помидор — 120 г</li>
+<li>Яйца — 2 шт</li>
+<li>Молоко — 50 мл</li>
+<li>Паприка — 1/2 ч. л</li>
+<li>Соль, перец — по вкусу</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>Индейку и овощи выложить в форму.</li>
+<li>Взбить яйца с молоком и специями.</li>
+<li>Залить.</li>
+<li>Запечь 15–20 мин при 180°C.</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="acc" data-acc="r19">
+          <div class="accTop">
+            <div>
+              <div class="t">Торт «Филадельфия»</div>
+              <div class="s">ПП</div>
+            </div>
+            <div class="accArrow">▾</div>
+          </div>
+          <div class="accBody">
+            <div style="margin-top:8px;font-weight:950;">КБЖУ: <span style="color:rgba(255,255,255,.88)">не указано</span></div>
+            <div style="margin-top:10px;font-weight:950;">Ингредиенты</div>
+            <ul style="margin:6px 0 0;padding-left:18px;">
+<li>Красная рыба — 200 г</li>
+<li>Варёный рис — 250 г</li>
+<li>Творожный сыр — 150 г</li>
+<li>Листы нори — 3–4 шт</li>
+<li>Авокадо — 1 шт</li>
+<li>Огурец — 1 шт</li>
+<li>Соевый соус (низкосолёный) — для подачи</li>
+            </ul>
+            <div style="margin-top:10px;font-weight:950;">Приготовление</div>
+            <ol style="margin:6px 0 0;padding-left:18px;">
+<li>В форму слоями: красная рыба → рис → творожный сыр.</li>
+<li>Закрыть нори.</li>
+<li>Второй слой: авокадо + огурец, затем снова рис и сыр.</li>
+<li>Сверху — нори.</li>
+<li>Убрать в холодильник на 2–3 часа.</li>
+<li>Перевернуть и подать с соевым соусом.</li>
+            </ol>
+          </div>
+        </div>
+        </div>
+      </div>
+    </section>
+      </div>
+    </main>
+
+    <!-- TABS -->
+    <footer class="tabs">
+      <div class="tabsInner">
+        <button class="tabbtn" id="tabBtnAnalytics" data-tab="analytics" title="Аналитика">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M4 19V5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M8 19V11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M12 19V7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M16 19V14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M20 19V9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div class="lbl">Аналитика</div>
+        </button>
+
+        <button class="tabbtn" id="tabBtnDiary" data-tab="diary" title="Дневник">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M7 4h10a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2"/>
+            <path d="M9 8h6M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div class="lbl">Дневник</div>
+        </button>
+<button class="tabbtn" id="tabBtnProfile" data-tab="profile" title="Профиль">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z" stroke="currentColor" stroke-width="2"/>
+            <path d="M20 20a8 8 0 0 0-16 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div class="lbl">Профиль</div>
+        </button>
+
+        <button class="tabbtn" id="tabBtnNotify" data-tab="notify" title="Уведомления">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 22a2 2 0 0 0 2-2H10a2 2 0 0 0 2 2Z" stroke="currentColor" stroke-width="2"/>
+            <path d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2h16l-2-2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+          <div class="lbl">Уведомления</div>
+        </button>
+        <button id="tabBtnWorkouts" class="tabbtn" aria-label="Тренировки">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2" y="7" width="3" height="10" rx="1"></rect>
+          <rect x="5" y="10" width="2" height="4" rx="1"></rect>
+          <line x1="7" y1="12" x2="17" y2="12"></line>
+          <rect x="17" y="10" width="2" height="4" rx="1"></rect>
+          <rect x="19" y="7" width="3" height="10" rx="1"></rect>
+          </svg>
+          <div class="lbl">Тренировки</div>
+        </button>
+
+        <button class="tabbtn" id="tabBtnRecipes" data-tab="recipes" title="Рецепты">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <div class="lbl">Рецепты</div>
+        </button>
+      </div>
+    </footer>
+
+    <!-- LOCK -->
+    <div class="lockFull" id="lockFull">
+      <div class="lockBox">
+        <div class="t">Сначала заполни профиль</div>
+        <div class="d">Пока профиль не заполнен — остальные разделы недоступны.</div>
+        <button class="btn primary" id="btnGoProfile" style="margin-top:12px;">Перейти в профиль</button>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div class="loading" id="loading">
+      <div class="loadingBox">
+        <div class="spinner"></div>
+        <div style="font-weight:980;letter-spacing:-0.02em;" id="loadingText">Загрузка…</div>
+        <div style="margin-top:6px;color:rgba(255,255,255,.62);font-weight:800;font-size:12px;" id="loadingSub"></div>
+      </div>
+    </div>
+
+    <!-- SHEET ADD -->
+    <div class="sheet" id="sheetAdd">
+      <div class="sheetBox">
+        <div class="sheetTop">
+          <div class="t">Добавить еду</div>
+          <button class="xbtn" id="btnCloseSheet">✕</button>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+          <div>
+            <div class="sectionLabel">Тип</div>
+            <select id="mealType">
+              <option value="breakfast">Завтрак</option>
+              <option value="lunch">Обед</option>
+              <option value="dinner">Ужин</option>
+              <option value="snack">Перекус</option>
+            </select>
+          </div>
+
+          <div>
+            <div class="sectionLabel">Что ел(а)</div>
+            <textarea id="mealText" placeholder="Например: гречка 200г + курица 150г + салат"></textarea>
+          </div>
+
+          <div>
+            <div class="sectionLabel">Фото (необязательно)</div>
+            <input id="mealPhoto" type="file" accept="image/*" />
+            <div class="photoRow">
+              <img id="mealPhotoPreview" class="photoPreview hide" alt="Фото" />
+              <div class="photoMeta" id="mealPhotoMeta">Фото не выбрано</div>
+              <button class="photoClear" id="btnClearPhoto" type="button">✕</button>
+            </div>
+          </div>
+
+          <button class="btn primary" id="btnLogMeal">Записать</button>
+          <div class="hint" id="logHint"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const CONFIG = {
+    n8n: {
+      losevfft:       "https://n8n.other-digital.ru/webhook/losevfft",
+      profile_upsert: "https://n8n.other-digital.ru/webhook/profile_upsert",
+      profile_get:    "https://n8n.other-digital.ru/webhook/profile_get",
+      daily_get:      "https://n8n.other-digital.ru/webhook/daily_get",
+      month_get:      "https://n8n.other-digital.ru/webhook/month_get",
+      settings_upsert:"https://n8n.other-digital.ru/webhook/settings_upsert",
+      token:          "82c1d601fcc0371bb17cbc69942fccc0",
+    }
+  };
+
+  const tg = window.Telegram?.WebApp;
+  if (tg) {
+    try{ tg.ready(); }catch{}
+    try{ tg.expand(); }catch{}
+    try{ tg.setHeaderColor?.("#070812"); }catch{}
+    try{ tg.setBackgroundColor?.("#070812"); }catch{}
+  }
+
+  const QS = new URLSearchParams(location.search);
+  const el = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  function vib(ms=12){
+    try{ tg?.HapticFeedback?.impactOccurred?.("light"); }catch{}
+    try{ navigator?.vibrate?.(ms); }catch{}
+  }
+  function vibSelect(){
+    try{ tg?.HapticFeedback?.selectionChanged?.(); }catch{}
+    try{ navigator?.vibrate?.(8); }catch{}
+  }
+  function vibOk(){
+    try{ tg?.HapticFeedback?.notificationOccurred?.("success"); }catch{}
+    try{ navigator?.vibrate?.([10,20,10]); }catch{}
+  }
+  function vibBad(){
+    try{ tg?.HapticFeedback?.notificationOccurred?.("error"); }catch{}
+    try{ navigator?.vibrate?.([20,30,20]); }catch{}
+  }
+
+  function decodeSafe(s){ try { return decodeURIComponent(String(s)); } catch { return String(s); } }
+  function normalizeId(raw, allowMinus){
+    const s0 = decodeSafe(raw || "").trim();
+    if (!s0) return "";
+    if (s0.includes("#{") || s0.includes("}#") || s0.includes("{") || s0.includes("}")) return "";
+    const sign = (allowMinus && s0.startsWith("-")) ? "-" : "";
+    const digits = s0.replace(/\D/g, "");
+    if (digits.length >= 5) return sign + digits;
+    return "";
+  }
+  function getIds(){
+    const rawExt  = QS.get("external_user_id") || "";
+    const rawChat = QS.get("chat_id") || "";
+    const tgId = tg?.initDataUnsafe?.user?.id ? String(tg.initDataUnsafe.user.id) : "";
+    const ext  = normalizeId(rawExt, false) || normalizeId(tgId, false);
+    const chat = normalizeId(rawChat, true) || normalizeId(tgId, true) || ext;
+    return { ext, chat, rawExt, rawChat, tgId };
+  }
+
+  const IDS = getIds();
+  const external_user_id = IDS.ext;
+  const chat_id = IDS.chat;
+
+  el("uidPill").textContent = external_user_id || "—";
+  el("idPill").title = external_user_id || "";
+
+  if (!external_user_id) {
+    el("idWarn").classList.remove("hide");
+    el("idWarn").textContent =
+      "ID не найден. Проверь запуск по ссылке с параметром external_user_id. " +
+      "Сейчас WebApp видит: external_user_id=" + (IDS.rawExt || "∅") + ", tgId=" + (IDS.tgId || "∅");
+  } else if (IDS.rawExt && (IDS.rawExt.includes("#{") || IDS.rawExt.includes("{"))) {
+    el("idWarn").classList.remove("hide");
+    el("idWarn").textContent =
+      "В ссылке пришёл плейсхолдер вместо ID (external_user_id=" + IDS.rawExt + "). " +
+      "Я взял ID из Telegram (" + IDS.tgId + ").";
+  }
+
+  function showLoading(on, title, sub){
+    el("loading").classList.toggle("show", !!on);
+    el("loadingText").textContent = title || "Загрузка…";
+    el("loadingSub").textContent = sub || "";
+  }
+
+  function showLock(on){ el("lockFull").classList.toggle("show", !!on); }
+  function showSheet(on){ el("sheetAdd").classList.toggle("show", !!on); }
+
+  async function postForm(url, data, timeoutMs=12000){
+    const body = new URLSearchParams(data);
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), timeoutMs);
+    try{
+      const res = await fetch(url, {
+        method: "POST",
+        mode: "cors",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+          "x-webhook-token": CONFIG.n8n.token
+        },
+        body,
+        signal: ctrl.signal
+      });
+      const json = await res.json().catch(()=> ({}));
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (json && (json.status === "forbidden" || (json.ok === false && json.status === "forbidden"))) {
+        throw new Error("forbidden");
+      }
+      return json;
+    } catch(e){
+      if (String(e?.name) === "AbortError") throw new Error("timeout");
+      throw e;
+    } finally {
+      clearTimeout(t);
+    }
+  }
+
+  function clamp(n,a,b){ return Math.max(a, Math.min(b, n)); }
+  function fmtInt(x){ const n = Number(x); return Number.isFinite(n) ? String(Math.round(n)) : "0"; }
+  function pct(consumed, target){
+    const c = Number(consumed||0), t = Number(target||0);
+    if (!t || t <= 0) return 0;
+    return clamp((c/t)*100, 0, 999);
+  }
+  function setBar(id, p){
+    const v = clamp(p,0,100).toFixed(1) + "%";
+    el(id).style.width = v;
+  }
+
+  const mealTypeRu = (t) => ({
+    breakfast: "Завтрак",
+    lunch: "Обед",
+    dinner: "Ужин",
+    snack: "Перекус"
+  }[String(t||"").toLowerCase()] || String(t||"—"));
+
+  const goalRu = (g) => ({
+    lose: "Снизить",
+    maintain: "Поддерживать",
+    gain: "Набрать"
+  }[String(g||"").toLowerCase()] || String(g||"—"));
+
+  const goalIcon = (g) => ({
+    lose: "🔥",
+    maintain: "🏋️",
+    gain: "🚀"
+  }[String(g||"").toLowerCase()] || "🏋️");
+
+  function formatInTZ(date, tz){
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+    return fmt.format(date);
+  }
+
+  function fmtDateLabel(dateStr, tz){
+    const today = formatInTZ(new Date(), tz);
+    if (dateStr === today) return "Сегодня";
+    const d = new Date(dateStr + "T00:00:00");
+    try{
+      return new Intl.DateTimeFormat("ru-RU", { timeZone: tz, day:"2-digit", month:"long" }).format(d);
+    }catch{
+      return dateStr;
+    }
+  }
+
+  function fmtTimeHHMM(iso, tz){
+    if (!iso) return "—";
+    try{
+      const d = new Date(iso);
+      return new Intl.DateTimeFormat("ru-RU", {
+        timeZone: tz,
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false
+      }).format(d);
+    }catch{
+      return "—";
+    }
+  }
+
+  const tabs = ["analytics", "diary", "profile", "notify", "workouts", "recipes"];
+  const tabEls = {
+    analytics: el("tabAnalytics"),
+    diary: el("tabDiary"),
+    workouts: el("tabWorkouts"),
+    profile: el("tabProfile"),
+    notify: el("tabNotify"),
+    recipes: el("tabRecipes"),
+  };
+  const btnEls = {
+    analytics: el("tabBtnAnalytics"),
+    diary: el("tabBtnDiary"),
+    workouts: el("tabBtnWorkouts"),
+    profile: el("tabBtnProfile"),
+    notify: el("tabBtnNotify"),
+    recipes: el("tabBtnRecipes"),
+  };
+
+  let state = {
+    profile: null,
+    tz: "Europe/Moscow",
+    dateA: "",
+    dateD: ""
+  };
+
+  function setActiveTab(name){
+    for (const t of tabs){
+      tabEls[t].classList.toggle("hide", t !== name);
+      btnEls[t].classList.toggle("active", t === name);
+    }
+    vibSelect();
+    el("mainScroll").scrollTo({ top: 0, behavior: "instant" });
+  }
+
+  function lockIfNeeded(tab){
+    if (!state.profile){
+      if (tab !== "profile"){
+        showLock(true);
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function enableTabs(){
+    const hasProfile = !!state.profile;
+    for (const t of tabs){
+      if (t === "profile") continue;
+      btnEls[t].classList.toggle("disabled", !hasProfile);
+    }
+  }
+
+  for (const t of tabs){
+    btnEls[t].addEventListener("click", () => {
+      if (!lockIfNeeded(t)) return;
+      setActiveTab(t);
+    });
+  }
+
+  el("btnGoProfile").addEventListener("click", () => {
+    showLock(false);
+    setActiveTab("profile");
+  });
+
+  el("btnOpenSheet").addEventListener("click", () => { vib(); showSheet(true); });
+  el("btnCloseSheet").addEventListener("click", () => { vib(); showSheet(false); });
+
+  function shiftDate(dateStr, days){
+    const d = new Date(dateStr + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0,10);
+  }
+
+  el("aPrev").addEventListener("click", () => { vib(); state.dateA = shiftDate(state.dateA, -1); refreshAnalytics(); });
+  el("aNext").addEventListener("click", () => { vib(); state.dateA = shiftDate(state.dateA,  1); refreshAnalytics(); });
+  el("dPrev").addEventListener("click", () => { vib(); state.dateD = shiftDate(state.dateD, -1); refreshDiary(); });
+  el("dNext").addEventListener("click", () => { vib(); state.dateD = shiftDate(state.dateD,  1); refreshDiary(); });
+
+  async function loadProfile(){
+    if (!external_user_id) return null;
+    const res = await postForm(CONFIG.n8n.profile_get, { external_user_id });
+    if (res?.ok && res.found) return res.profile;
+    return null;
+  }
+
+  function setProfileUI(p){
+    const has = !!p;
+    el("profileFormBlock").classList.toggle("hide", has);
+    el("profileReadyBlock").classList.toggle("hide", !has);
+    if (!has) return;
+
+    el("pWeight").textContent = fmtInt(p.weight_kg) + " кг";
+    el("pHeight").textContent = fmtInt(p.height_cm) + " см";
+    el("pAge").textContent = fmtInt(p.age);
+    el("pGoal").textContent = goalRu(p.goal);
+    el("pGoalIcon").textContent = goalIcon(p.goal);
+
+    el("tCal").textContent  = fmtInt(p.target_calories);
+    el("tProt").textContent = fmtInt(p.target_protein_g);
+    el("tFat").textContent  = fmtInt(p.target_fat_g);
+    el("tCarb").textContent = fmtInt(p.target_carbs_g);
+
+    el("profileHint").textContent = "Профиль заполнен. Разделы разблокированы.";
+  }
+
+  function fillProfileForm(p){
+    if (!p) return;
+    el("sex").value = String(p.sex || "");
+    el("age").value = p.age ? String(p.age) : "";
+    el("height_cm").value = p.height_cm ? String(p.height_cm) : "";
+    el("weight_kg").value = p.weight_kg ? String(p.weight_kg) : "";
+    el("activity_level").value = p.activity_level ? String(p.activity_level) : "";
+    el("goal").value = String(p.goal || "");
+  }
+
+  function needProfileCalc(){
+    const sex = el("sex").value;
+    const age = el("age").value;
+    const height_cm = el("height_cm").value;
+    const weight_kg = el("weight_kg").value;
+    const activity_level = el("activity_level").value;
+    const goal = el("goal").value;
+    return (sex=="" || age=="" || height_cm=="" || weight_kg=="" || activity_level=="" || goal=="") ? "1" : "0";
+  }
+
+  function showProfileFormHint(msg){
+    el("profileFormHint").classList.remove("hide");
+    el("profileFormHint").textContent = msg;
+  }
+  function hideProfileFormHint(){
+    el("profileFormHint").classList.add("hide");
+    el("profileFormHint").textContent = "";
+  }
+
+  el("btnSaveProfile").addEventListener("click", async () => {
+    vib();
+    hideProfileFormHint();
+
+    if (!external_user_id) {
+      showProfileFormHint("Нет external_user_id — запуск по ссылке неверный.");
+      vibBad();
+      return;
+    }
+
+    if (needProfileCalc() === "1"){
+      showProfileFormHint("Заполни все поля профиля.");
+      vibBad();
+      return;
+    }
+
+    const data = {
+      external_user_id,
+      chat_id,
+      timezone: state.tz,
+      sex: el("sex").value,
+      age: el("age").value,
+      height_cm: el("height_cm").value,
+      weight_kg: el("weight_kg").value,
+      activity_level: el("activity_level").value,
+      goal: el("goal").value
+    };
+
+    showLoading(true, "Сохраняю профиль…");
+    try{
+      await postForm(CONFIG.n8n.profile_upsert, data);
+      vibOk();
+      await sleep(250);
+      state.profile = await loadProfile();
+      setProfileUI(state.profile);
+      fillProfileForm(state.profile);
+      enableTabs();
+      setActiveTab("analytics");
+      await refreshAll();
+    }catch(e){
+      vibBad();
+      showProfileFormHint("Ошибка сохранения профиля: " + String(e.message || e));
+    }finally{
+      showLoading(false);
+    }
+  });
+
+  el("btnEditProfile").addEventListener("click", () => {
+    vib();
+    el("profileFormBlock").classList.remove("hide");
+    el("profileReadyBlock").classList.add("hide");
+    fillProfileForm(state.profile);
+  });
+
+  async function loadDaily(dateStr){
+    if (!external_user_id) return null;
+    const res = await postForm(CONFIG.n8n.daily_get, { external_user_id, local_date: dateStr });
+    if (res?.ok) return res.daily;
+    return null;
+  }
+
+  function setDiaryUI(d){
+    if (!d) return;
+
+    const tK = Number(d.target_calories || 0);
+    const cK = Number(d.consumed_calories || 0);
+    const rem = Math.max(0, Math.round(tK - cK));
+
+    el("dTargetKcal").textContent = fmtInt(tK);
+    el("dRemainKcal").textContent = fmtInt(rem);
+
+    el("dProtC").textContent = fmtInt(d.consumed_protein_g);
+    el("dProtC2").textContent = fmtInt(d.consumed_protein_g);
+    el("dProtT").textContent = fmtInt(d.target_protein_g);
+    setBar("dBarP", pct(d.consumed_protein_g, d.target_protein_g));
+
+    el("dFatC").textContent = fmtInt(d.consumed_fat_g);
+    el("dFatC2").textContent = fmtInt(d.consumed_fat_g);
+    el("dFatT").textContent = fmtInt(d.target_fat_g);
+    setBar("dBarF", pct(d.consumed_fat_g, d.target_fat_g));
+
+    el("dCarbC").textContent = fmtInt(d.consumed_carbs_g);
+    el("dCarbC2").textContent = fmtInt(d.consumed_carbs_g);
+    el("dCarbT").textContent = fmtInt(d.target_carbs_g);
+    setBar("dBarC", pct(d.consumed_carbs_g, d.target_carbs_g));
+
+    el("lmType").textContent = d.last_meal_type ? mealTypeRu(d.last_meal_type) : "—";
+    el("lmText").textContent = d.last_meal_text ? String(d.last_meal_text) : "—";
+    el("lmKcal").textContent = d.last_meal_kcal ? (fmtInt(d.last_meal_kcal) + " ккал") : "—";
+    el("lmPfc").textContent = d.last_meal_pfc ? String(d.last_meal_pfc) : "—";
+    el("lmAt").textContent = d.last_meal_at ? fmtTimeHHMM(d.last_meal_at, state.tz) : "—";
+  }
+
+  async function refreshDiary(){
+    if (!state.profile) return;
+    showLoading(true, "Загружаю дневник…");
+    try{
+      const d = await loadDaily(state.dateD);
+      el("dDateLabel").textContent = fmtDateLabel(state.dateD, state.tz);
+      setDiaryUI(d);
+    }catch(e){
+      el("diaryHint").classList.remove("hide");
+      el("diaryHint").textContent = "Ошибка дневника: " + String(e.message || e);
+    }finally{
+      showLoading(false);
+    }
+  }
+
+  function setAnalyticsUI(d){
+    if (!d) return;
+    el("aKcal").textContent = fmtInt(d.consumed_calories);
+    el("aProt").textContent = fmtInt(d.consumed_protein_g);
+    el("aFat").textContent = fmtInt(d.consumed_fat_g);
+    el("aCarb").textContent = fmtInt(d.consumed_carbs_g);
+
+    el("pKcalC").textContent = fmtInt(d.consumed_calories);
+    el("pKcalT").textContent = fmtInt(d.target_calories);
+    el("pKcalPct").textContent = fmtInt(pct(d.consumed_calories, d.target_calories));
+    setBar("barKcal", pct(d.consumed_calories, d.target_calories));
+
+    el("pProtC").textContent = fmtInt(d.consumed_protein_g);
+    el("pProtT").textContent = fmtInt(d.target_protein_g);
+    el("pProtPct").textContent = fmtInt(pct(d.consumed_protein_g, d.target_protein_g));
+    setBar("barProt", pct(d.consumed_protein_g, d.target_protein_g));
+
+    el("pFatC").textContent = fmtInt(d.consumed_fat_g);
+    el("pFatT").textContent = fmtInt(d.target_fat_g);
+    el("pFatPct").textContent = fmtInt(pct(d.consumed_fat_g, d.target_fat_g));
+    setBar("barFat", pct(d.consumed_fat_g, d.target_fat_g));
+
+    el("pCarbC").textContent = fmtInt(d.consumed_carbs_g);
+    el("pCarbT").textContent = fmtInt(d.target_carbs_g);
+    el("pCarbPct").textContent = fmtInt(pct(d.consumed_carbs_g, d.target_carbs_g));
+    setBar("barCarb", pct(d.consumed_carbs_g, d.target_carbs_g));
+  }
+
+  async function refreshAnalytics(){
+    if (!state.profile) return;
+    showLoading(true, "Загружаю аналитику…");
+    try{
+      const d = await loadDaily(state.dateA);
+      el("aDateLabel").textContent = fmtDateLabel(state.dateA, state.tz);
+      setAnalyticsUI(d);
+    }catch(e){
+      el("analyticsHint").classList.remove("hide");
+      el("analyticsHint").textContent = "Ошибка аналитики: " + String(e.message || e);
+    }finally{
+      showLoading(false);
+    }
+  }
+
+  async function loadMonth(monthStr){
+    if (!external_user_id) return null;
+    const payload = { external_user_id };
+    if (monthStr) payload.month = monthStr;
+    const res = await postForm(CONFIG.n8n.month_get, payload);
+    if (res?.ok) return res;
+    return null;
+  }
+
+  function setMonthUI(res){
+    const s = res?.stats || {};
+    el("mStreak").textContent = fmtInt(s.streak_days);
+    el("mDays").textContent = fmtInt(s.days_with_entries);
+    el("mPct").textContent = fmtInt(s.pct_of_plan);
+    el("mPct2").textContent = fmtInt(s.pct_of_plan);
+    el("mAvgKcal").textContent = fmtInt(s.avg_calories);
+    el("mAvgP").textContent = fmtInt(s.avg_protein_g);
+    el("mAvgF").textContent = fmtInt(s.avg_fat_g);
+    el("mAvgC").textContent = fmtInt(s.avg_carbs_g);
+  }
+
+  function showLogHint(msg, ok){
+    el("logHint").classList.remove("hide");
+    el("logHint").classList.toggle("ok", !!ok);
+    el("logHint").classList.toggle("bad", !ok);
+    el("logHint").textContent = msg;
+  }
+
+  // PHOTO: подготовка фото (сжатие/resize) и отправка в n8n без ломания текущего текстового сценария
+  let mealPhotoState = {
+    data_url: "",
+    base64: "",
+    mime: "",
+    name: "",
+    orig_size: 0,
+    w: 0,
+    h: 0
+  };
+
+  function fmtBytes(n){
+    const x = Number(n||0);
+    if (!Number.isFinite(x) || x <= 0) return "0 B";
+    const u = ["B","KB","MB","GB"];
+    let i = 0;
+    let v = x;
+    while (v >= 1024 && i < u.length-1){ v /= 1024; i++; }
+    return (i === 0 ? String(Math.round(v)) : String(Math.round(v*10)/10)) + " " + u[i];
+  }
+
+  function resetMealPhoto(){
+    mealPhotoState = { data_url:"", base64:"", mime:"", name:"", orig_size:0, w:0, h:0 };
+    const inp = el("mealPhoto");
+    if (inp) inp.value = "";
+    const img = el("mealPhotoPreview");
+    if (img){
+      img.src = "";
+      img.classList.add("hide");
+    }
+    const meta = el("mealPhotoMeta");
+    if (meta) meta.textContent = "Фото не выбрано";
+  }
+
+  function readAsDataURL(file){
+    return new Promise((resolve, reject)=>{
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result || ""));
+      r.onerror = () => reject(r.error || new Error("file_read_error"));
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function compressImageToDataURL(file, maxSide=1280, quality=0.82){
+    const src = await readAsDataURL(file);
+    const img = new Image();
+    img.src = src;
+
+    // img.decode() не везде стабилен в WebView → фолбэк на onload
+    try{
+      if (img.decode) await img.decode();
+      else await new Promise((res, rej)=>{ img.onload=res; img.onerror=rej; });
+    }catch{
+      await new Promise((res, rej)=>{ img.onload=res; img.onerror=rej; });
+    }
+
+    const w0 = img.naturalWidth || img.width || 0;
+    const h0 = img.naturalHeight || img.height || 0;
+    if (!w0 || !h0) throw new Error("bad_image");
+
+    const scale = Math.min(1, maxSide / Math.max(w0, h0));
+    const w = Math.max(1, Math.round(w0 * scale));
+    const h = Math.max(1, Math.round(h0 * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+
+    const ctx = canvas.getContext("2d", { alpha: false });
+    ctx.drawImage(img, 0, 0, w, h);
+
+    const outMime = "image/jpeg";
+    const dataUrl = canvas.toDataURL(outMime, quality);
+    const base64 = String(dataUrl.split(",")[1] || "");
+
+    return { dataUrl, base64, mime: outMime, w, h };
+  }
+
+  // UI events (если этих элементов нет — ничего не происходит)
+  try{
+    el("btnClearPhoto")?.addEventListener("click", ()=>{ vib(); resetMealPhoto(); });
+    el("mealPhoto")?.addEventListener("change", async ()=>{
+      vibSelect();
+      const f = el("mealPhoto")?.files?.[0];
+      if (!f){ resetMealPhoto(); return; }
+
+      showLoading(true, "Готовлю фото…", "Сжимаю изображение для быстрой отправки");
+      try{
+        const out = await compressImageToDataURL(f, 1280, 0.82);
+
+        // safety: ограничим размер data-url (чтобы не упереться в лимиты прокси/вебхука)
+        if (out.dataUrl.length > 1400000){
+          resetMealPhoto();
+          showLogHint("Фото слишком большое. Попробуй сделать снимок ближе или выбери другое фото.", false);
+          vibBad();
+          return;
+        }
+
+        mealPhotoState.data_url = out.dataUrl;
+        mealPhotoState.base64 = out.base64;
+        mealPhotoState.mime = out.mime;
+        mealPhotoState.name = (f.name && String(f.name).trim()) ? String(f.name) : "photo.jpg";
+        mealPhotoState.orig_size = Number(f.size || 0);
+        mealPhotoState.w = out.w;
+        mealPhotoState.h = out.h;
+
+        const img = el("mealPhotoPreview");
+        if (img){
+          img.src = out.dataUrl;
+          img.classList.remove("hide");
+        }
+
+        const meta = el("mealPhotoMeta");
+        if (meta){
+          meta.textContent = "Фото: " + fmtBytes(mealPhotoState.orig_size) + " • " + mealPhotoState.w + "×" + mealPhotoState.h;
+        }
+      }catch(e){
+        resetMealPhoto();
+        showLogHint("Не получилось прочитать фото: " + String(e.message || e), false);
+        vibBad();
+      }finally{
+        showLoading(false);
+      }
+    });
+  }catch{}
+
+  el("btnLogMeal").addEventListener("click", async () => {
+    vib();
+    const type = el("mealType").value;
+    const caption = String(el("mealText").value || "").trim();
+    if (!caption && !mealPhotoState.data_url){
+      showLogHint("Пришли фото еды или напиши текстом, что ты ел(а).", false);
+      vibBad(); return;
+    }
+    if (!external_user_id){
+      showLogHint("Нет external_user_id.", false);
+      vibBad();
+      return;
+    }
+
+    showLoading(true, "Записываю приём…", mealPhotoState.data_url ? "Анализирую фото еды" : "Анализирую описание еды");
+    try{
+      await postForm(CONFIG.n8n.losevfft, {
+        external_user_id,
+        chat_id,
+        message_id: String(Date.now()),
+        meal_type: type,
+        caption,
+        photo_url: "",
+
+        // PHOTO (optional): данные для n8n (можно использовать без изменения текущего сценария)
+        has_photo: mealPhotoState.data_url ? "1" : "0",
+        photo_data_url: mealPhotoState.data_url || "",
+        photo_base64: mealPhotoState.base64 || "",
+        photo_mime: mealPhotoState.mime || "",
+        photo_name: mealPhotoState.name || "",
+        photo_w: mealPhotoState.w ? String(mealPhotoState.w) : "",
+        photo_h: mealPhotoState.h ? String(mealPhotoState.h) : ""
+      }, mealPhotoState.data_url ? 25000 : 12000);
+
+      vibOk();
+      showSheet(false);
+      el("mealText").value = "";
+      resetMealPhoto();
+      await sleep(450);
+      await refreshAll();
+    }catch(e){
+      vibBad();
+      showLogHint("Ошибка записи: " + String(e.message || e), false);
+    }finally{
+      showLoading(false);
+    }
+  });
+
+  function switchSet(on, elSw){
+    elSw.classList.toggle("on", !!on);
+  }
+
+  el("swRem").addEventListener("click", () => { vibSelect(); el("swRem").classList.toggle("on"); });
+  el("sw80").addEventListener("click", () => { vibSelect(); el("sw80").classList.toggle("on"); });
+
+  el("btnSaveNotify").addEventListener("click", async () => {
+    vib();
+    const time = el("remTimeInput").value || "09:00";
+    el("remTime").textContent = time;
+    el("notifyHint").textContent = "Сохранено локально (серверная часть в разработке).";
+  });
+
+  document.querySelectorAll(".acc").forEach(acc => {
+    acc.querySelector(".accTop").addEventListener("click", () => {
+      vibSelect();
+      acc.classList.toggle("open");
+    });
+  });
+
+  async function refreshAll(){
+    if (!state.profile) return;
+    await Promise.all([
+      refreshAnalytics(),
+      refreshDiary(),
+      (async ()=>{
+        try{
+          const monthStr = state.dateA ? String(state.dateA).slice(0,7) : "";
+          const res = await loadMonth(monthStr);
+          if (res) setMonthUI(res);
+        }catch{}
+      })()
+    ]);
+  }
+
+  (async function init(){
+    state.tz = "Europe/Moscow";
+    const today = formatInTZ(new Date(), state.tz);
+    state.dateA = today;
+    state.dateD = today;
+
+    showLoading(true, "Загрузка…");
+    try{
+      state.profile = await loadProfile();
+      setProfileUI(state.profile);
+      fillProfileForm(state.profile);
+      enableTabs();
+
+      if (state.profile){
+        setActiveTab("analytics");
+        await refreshAll();
+      } else {
+        setActiveTab("profile");
+      }
+    }catch(e){
+      el("idWarn").classList.remove("hide");
+      el("idWarn").textContent = "Ошибка загрузки: " + String(e.message || e);
+    }finally{
+      showLoading(false);
+    }
+  })();
+</script>
+</body>
+</html>
