@@ -5309,8 +5309,14 @@
     // Публичная функция для refreshAll
     window._refreshWater = async function(){
       const goal = calcGoal();
-      const total = await loadWater();
-      renderWater(total, goal);
+      // 1. СРАЗУ рендерим из кэша (мгновенно)
+      const cached = getWaterCache();
+      renderWater(cached, goal);
+      // 2. Потом обновляем с сервера
+      try{
+        const total = await loadWater();
+        if(total !== cached) renderWater(total, goal);
+      }catch{}
     };
     window._addWater = addWater;
     window._saveWater = saveWater;
@@ -5386,16 +5392,18 @@
     }
 
     // Отправить лог на сервер и сохранить в кэш
-    async function sendLog(habit_id, date, value){
+    function sendLog(habit_id, date, value){
       // Сначала сохраняем локально — чтобы при перезагрузке не потерялось
       if(String(value) === '0' || value === ''){
         removeLogFromCache(date, habit_id);
       } else {
         saveLogToCache(date, habit_id, String(value));
       }
-      try{
-        await postForm(CONFIG.n8n.habits_log,{external_user_id, habit_id, date, value: String(value)});
-      }catch(e){ console.warn('habits_log error',e); }
+      // Отправляем на сервер в фоне (не блокируем UI)
+      if(external_user_id){
+        postForm(CONFIG.n8n.habits_log,{external_user_id, habit_id, date, value: String(value)})
+          .catch(function(e){ console.warn('habits_log error',e); });
+      }
     }
 
     // Посчитать streak по логам одной привычки (массив дат desc)
@@ -5678,79 +5686,76 @@
 
     // Инициализация
     async function initHabits(){
-      let defs = [];
       const debugEl = document.getElementById('habitsDebug');
+      const today = todayStr();
 
-      if(external_user_id){
-        try{
-          const r = await postForm(CONFIG.n8n.habit_defs_get, {external_user_id});
-          if(debugEl){ debugEl.textContent = 'habit_defs_get: ' + JSON.stringify(r); debugEl.style.display='block'; }
+      // 1. СРАЗУ рендерим из localStorage (мгновенно, без ожидания сервера)
+      let defs = loadDefs();
+      const cache = loadLogsCache();
+      const todayCache = cache[today] || {};
+      const localLogs = Object.entries(todayCache).map(([hid,val])=>({habit_id:hid,date:today,value:val}));
+      render(defs, buildStatus(localLogs, today), today);
 
-          let rawDefs = null;
-          if(r?.ok && Array.isArray(r.defs)) rawDefs = r.defs;
-          else if(Array.isArray(r)) rawDefs = r;
-          else if(Array.isArray(r?.data)) rawDefs = r.data;
-          else if(Array.isArray(r?.rows)) rawDefs = r.rows;
-          else if(Array.isArray(r?.habits)) rawDefs = r.habits;
+      // 2. В фоне синхронизируемся с сервером и обновляем
+      if(!external_user_id) return;
 
-          if(rawDefs && rawDefs.length){
-            defs = rawDefs.map(d => ({
-              id:     d.id || d.habit_id || String(d.id),
-              name:   d.name || d.habit_name || d.title || 'Привычка',
-              type:   d.type || d.habit_type || 'check',
-              target: d.target || d.goal || '',
-              unit:   d.unit || '',
-              reminder: d.reminder || null,
-            }));
-            // Мержим с localStorage — берём максимальный набор
-            const localDefs = loadDefs();
-            const serverIds = new Set(defs.map(d => d.id));
-            const localOnly = localDefs.filter(d => !serverIds.has(d.id));
-            if(localOnly.length){
-              // Есть локальные привычки которых нет на сервере — синхронизируем
-              defs = [...defs, ...localOnly];
-              for(const def of localOnly){
-                try{ await postForm(CONFIG.n8n.habit_defs_save, {
-                  external_user_id, habit_id:def.id, name:def.name,
-                  type:def.type||'check', target:def.target||'', unit:def.unit||''
-                }); }catch{}
-              }
-            }
-            saveDefs(defs);
-          } else {
-            // БД пустая — берём из localStorage и мигрируем в БД
-            const localDefs = loadDefs();
-            if(localDefs.length){
-              if(debugEl) debugEl.textContent += ' | Мигрируем ' + localDefs.length + ' привычек из localStorage в БД...';
-              defs = localDefs;
-              // Сохраняем каждую привычку в БД
-              for(const def of localDefs){
-                try{
-                  await postForm(CONFIG.n8n.habit_defs_save, {
-                    external_user_id,
-                    habit_id: def.id,
-                    name: def.name,
-                    type: def.type || 'check',
-                    target: def.target || '',
-                    unit: def.unit || ''
-                  });
-                }catch(e){ console.warn('migrate habit error', e); }
-              }
-              if(debugEl) debugEl.textContent += ' Готово!';
+      try{
+        const r = await postForm(CONFIG.n8n.habit_defs_get, {external_user_id});
+        if(debugEl){ debugEl.textContent = 'habit_defs_get: ' + JSON.stringify(r); debugEl.style.display='block'; }
+
+        let rawDefs = null;
+        if(r?.ok && Array.isArray(r.defs)) rawDefs = r.defs;
+        else if(Array.isArray(r)) rawDefs = r;
+        else if(Array.isArray(r?.data)) rawDefs = r.data;
+        else if(Array.isArray(r?.rows)) rawDefs = r.rows;
+        else if(Array.isArray(r?.habits)) rawDefs = r.habits;
+
+        if(rawDefs && rawDefs.length){
+          defs = rawDefs.map(d => ({
+            id:     d.id || d.habit_id || String(d.id),
+            name:   d.name || d.habit_name || d.title || 'Привычка',
+            type:   d.type || d.habit_type || 'check',
+            target: d.target || d.goal || '',
+            unit:   d.unit || '',
+            reminder: d.reminder || null,
+          }));
+          const localDefs = loadDefs();
+          const serverIds = new Set(defs.map(d => d.id));
+          const localOnly = localDefs.filter(d => !serverIds.has(d.id));
+          if(localOnly.length){
+            defs = [...defs, ...localOnly];
+            for(const def of localOnly){
+              postForm(CONFIG.n8n.habit_defs_save, {
+                external_user_id, habit_id:def.id, name:def.name,
+                type:def.type||'check', target:def.target||'', unit:def.unit||''
+              }).catch(()=>{});
             }
           }
-        }catch(e){
-          if(debugEl){ debugEl.textContent = 'Ошибка: ' + e.message; debugEl.style.display='block'; }
-          defs = loadDefs();
+          saveDefs(defs);
+        } else {
+          const localDefs = loadDefs();
+          if(localDefs.length){
+            defs = localDefs;
+            for(const def of localDefs){
+              postForm(CONFIG.n8n.habit_defs_save, {
+                external_user_id, habit_id: def.id, name: def.name,
+                type: def.type || 'check', target: def.target || '',
+                unit: def.unit || ''
+              }).catch(()=>{});
+            }
+          }
         }
-      } else {
+      }catch(e){
+        if(debugEl){ debugEl.textContent = 'Ошибка: ' + e.message; debugEl.style.display='block'; }
         defs = loadDefs();
       }
 
-      const today = todayStr();
-      const logs  = await loadLogs();
-      const status= buildStatus(logs, today);
-      render(defs, status, today);
+      // 3. Загружаем полные логи с сервера и перерисовываем
+      try{
+        const logs = await loadLogs();
+        const status = buildStatus(logs, today);
+        render(defs, status, today);
+      }catch{}
     }
 
     // Тип новой привычки
@@ -5801,9 +5806,6 @@
         const hint=document.getElementById('habitsHint');
         if(!name){ hint.textContent='Введи название привычки.'; return; }
         hint.textContent='';
-        const saveBtn=document.getElementById('btnSaveHabit');
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Сохраняем…';
         const def={
           id:'h_'+Date.now(),
           name,
@@ -5812,32 +5814,33 @@
           unit:   habitType==='number' ? document.getElementById('habitUnitInp').value.trim() : '',
           reminder: _addRem.enabled ? {..._addRem} : null,
         };
+        // 1. Сохраняем в localStorage
         const defs=loadDefs(); defs.push(def); saveDefs(defs);
-        if(external_user_id){
-          try{ await postForm(CONFIG.n8n.habit_defs_save, {
-            external_user_id,
-            habit_id: def.id,
-            name: def.name,
-            type: def.type,
-            target: def.target||'',
-            unit: def.unit||''
-          }); }catch{}
-        }
-        if(_addRem.enabled && external_user_id){
-          try{ await postForm(CONFIG.n8n.habit_reminder_set,{
-            external_user_id, chat_id:String(state.profile?.chat_id||external_user_id),
-            habit_id:def.id, habit_name:def.name,
-            time:_addRem.time, days:_addRem.days.join(','),
-            before_min:String(_addRem.before), enabled:'1'
-          }); }catch{}
-        }
+        // 2. Закрываем форму и рендерим СРАЗУ из localStorage (не ждём сервер)
         _addRem={enabled:false,time:'08:00',days:[1,2,3,4,5,6,7],before:10};
-        saveBtn.disabled = false;
-        saveBtn.textContent = '💾 Сохранить';
         document.getElementById('habitsAddForm').style.display='none';
         document.getElementById('btnShowAddHabit').style.display='block';
         document.getElementById('habitNameInp').value='';
-        await initHabits();
+        const today = todayStr();
+        const cache = loadLogsCache();
+        const todayCache = cache[today] || {};
+        const localLogs = Object.entries(todayCache).map(([hid,val])=>({habit_id:hid,date:today,value:val}));
+        render(loadDefs(), buildStatus(localLogs, today), today);
+        // 3. Синхронизируем с сервером в фоне (не блокируем UI)
+        if(external_user_id){
+          postForm(CONFIG.n8n.habit_defs_save, {
+            external_user_id, habit_id: def.id, name: def.name,
+            type: def.type, target: def.target||'', unit: def.unit||''
+          }).catch(()=>{});
+          if(_addRem.enabled){
+            postForm(CONFIG.n8n.habit_reminder_set,{
+              external_user_id, chat_id:String(state.profile?.chat_id||external_user_id),
+              habit_id:def.id, habit_name:def.name,
+              time:_addRem.time, days:_addRem.days.join(','),
+              before_min:String(_addRem.before), enabled:'1'
+            }).catch(()=>{});
+          }
+        }
       });
     }
 
@@ -5858,7 +5861,7 @@
     window._closeRemModal = closeRemModal;
 
     // Экспортируем saveHabit для inline onclick фолбэка
-    window._saveHabit = async function(){
+    window._saveHabit = function(){
       var nameEl = document.getElementById('habitNameInp');
       var hint   = document.getElementById('habitsHint');
       var name   = (nameEl ? nameEl.value : '').trim();
@@ -5867,8 +5870,6 @@
         return;
       }
       if(hint) hint.textContent = '';
-      var saveBtn = document.getElementById('btnSaveHabit');
-      if(saveBtn){ saveBtn.disabled=true; saveBtn.textContent='Сохраняем…'; }
 
       var def = {
         id: 'h_'+Date.now(),
@@ -5878,20 +5879,24 @@
         unit:   habitType==='number' ? (document.getElementById('habitUnitInp').value||'')   : '',
         reminder: _addRem && _addRem.enabled ? {..._addRem} : null,
       };
+      // 1. Сохраняем в localStorage
       var defs = loadDefs(); defs.push(def); saveDefs(defs);
-
-      if(external_user_id){
-        try{ await postForm(CONFIG.n8n.habit_defs_save, {
-          external_user_id, habit_id:def.id, name:def.name,
-          type:def.type, target:def.target||'', unit:def.unit||''
-        }); }catch{}
-      }
-
-      if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent='💾 Сохранить'; }
+      // 2. Закрываем форму и рендерим СРАЗУ
       document.getElementById('habitsAddForm').style.display='none';
       document.getElementById('btnShowAddHabit').style.display='block';
       if(nameEl) nameEl.value='';
-      await initHabits();
+      var today = todayStr();
+      var cache = loadLogsCache();
+      var todayCache = cache[today] || {};
+      var localLogs = Object.entries(todayCache).map(function(e){return {habit_id:e[0],date:today,value:e[1]};});
+      render(loadDefs(), buildStatus(localLogs, today), today);
+      // 3. Синхронизируем с сервером в фоне
+      if(external_user_id){
+        postForm(CONFIG.n8n.habit_defs_save, {
+          external_user_id, habit_id:def.id, name:def.name,
+          type:def.type, target:def.target||'', unit:def.unit||''
+        }).catch(function(){});
+      }
     };
   })();
   // ======== END HABITS ========
