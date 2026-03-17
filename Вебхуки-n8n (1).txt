@@ -1,6 +1,0 @@
-https://n8n.other-digital.ru/webhook/losevfft
-https://n8n.other-digital.ru/webhook/profile_upsert
-https://n8n.other-digital.ru/webhook/profile_get
-https://n8n.other-digital.ru/webhook/daily_get
-https://n8n.other-digital.ru/webhook/month_get
-https://n8n.other-digital.ru/webhook/settings_upsert
