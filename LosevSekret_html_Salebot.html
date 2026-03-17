@@ -1910,10 +1910,10 @@
             <div style="display:flex;gap:8px;margin-top:12px;align-items:stretch;">
               <input id="waterPortionInp" type="number" inputmode="numeric" placeholder="мл" min="50" max="2000"
                 style="flex:0 0 70px;margin:0;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.22);color:rgba(255,255,255,.92);border-radius:14px;padding:10px 10px;font-size:16px;font-weight:800;text-align:center;" />
-              <button class="btn" id="btnWaterAdd" style="flex:1;margin:0;width:auto;" onclick="(async function(){if(window.addWater){await window.addWater(0||(document.getElementById('waterPortionInp')?parseInt(document.getElementById('waterPortionInp').value)||200:200));return;}var inp=document.getElementById('waterPortionInp');var ml=inp?parseInt(inp.value)||200:200;var uid=window._ext_user_id||'';var cur=parseInt(document.getElementById('waterCurrent').textContent)||0;var tot=cur+ml;document.getElementById('waterCurrent').textContent=tot;if(!uid)return;try{await fetch('https://n8n.other-digital.ru/webhook/water_log',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','x-webhook-token':'82c1d601fcc0371bb17cbc69942fccc0'},body:'external_user_id='+encodeURIComponent(uid)+'&date='+new Date().toLocaleDateString('en-CA')+'&total_ml='+tot});}catch(e){}})()">💧 Добавить</button>
-              <button class="btn secondary" id="btnWaterReset" style="flex:0 0 auto;margin:0;width:auto;padding:10px 14px;" onclick="if(confirm('Сбросить воду за сегодня?')&&window._saveWater){window._saveWater(0);}">↩</button>
+              <button class="btn" id="btnWaterAdd" style="flex:1;margin:0;width:auto;">💧 Добавить</button>
+              <button class="btn secondary" id="btnWaterReset" style="flex:0 0 auto;margin:0;width:auto;padding:10px 14px;">↩</button>
             </div>
-            <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.3);margin-top:6px;">Быстро: <span id="wq1" class="waterQuick" onclick="var inp=document.getElementById('waterPortionInp');if(inp){inp.value=100;}">100</span> · <span id="wq2" class="waterQuick" onclick="var inp=document.getElementById('waterPortionInp');if(inp){inp.value=200;}">200</span> · <span id="wq3" class="waterQuick" onclick="var inp=document.getElementById('waterPortionInp');if(inp){inp.value=250;}">250</span> · <span id="wq4" class="waterQuick" onclick="var inp=document.getElementById('waterPortionInp');if(inp){inp.value=500;}">500</span> мл</div>
+            <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.3);margin-top:6px;">Быстро: <span id="wq1" class="waterQuick">100</span> · <span id="wq2" class="waterQuick">200</span> · <span id="wq3" class="waterQuick">250</span> · <span id="wq4" class="waterQuick">500</span> мл</div>
             <div class="hint" id="waterHint" style="margin-top:6px;"></div>
           </div>
 
@@ -2109,12 +2109,11 @@
         <section id="tabHabits" class="hide" style="position:relative;">
           <div class="pageTitle">Привычки</div>
 
-          <!-- ДИАГНОСТИКА -->
-            <div id="habitsDiag" style="background:rgba(255,100,0,.15);border:1px solid rgba(255,100,0,.4);border-radius:12px;padding:12px;margin-bottom:12px;font-size:11px;color:rgba(255,255,255,.7);word-break:break-all;">
+          <!-- ДИАГНОСТИКА (скрыта) -->
+            <div id="habitsDiag" style="display:none;background:rgba(255,100,0,.15);border:1px solid rgba(255,100,0,.4);border-radius:12px;padding:12px;margin-bottom:12px;font-size:11px;color:rgba(255,255,255,.7);word-break:break-all;">
               <div style="font-weight:700;margin-bottom:6px;">🔍 Диагностика</div>
               <div id="diagUid" style="margin-bottom:4px;">UID: проверяется...</div>
               <div id="diagResult" style="margin-bottom:6px;"></div>
-              <button onclick="(async function(){var uid=window._ext_user_id||'';document.getElementById('diagUid').textContent='UID: '+uid;if(!uid){document.getElementById('diagResult').textContent='❌ external_user_id пустой! Проблема в URL.';return;}document.getElementById('diagResult').textContent='⏳ Запрос...';try{var r=await fetch('https://n8n.other-digital.ru/webhook/habit_defs_get',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','x-webhook-token':'82c1d601fcc0371bb17cbc69942fccc0'},body:'external_user_id='+encodeURIComponent(uid)});var j=await r.json();document.getElementById('diagResult').textContent='✅ Ответ: '+JSON.stringify(j);}catch(e){document.getElementById('diagResult').textContent='❌ Ошибка: '+e.message;}})()" style="background:rgba(255,100,0,.4);border:none;color:white;padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;">Тест соединения</button>
             </div>
 
           <div class="card" id="habitsCard">
@@ -2141,20 +2140,20 @@
                   <input id="habitUnitInp" placeholder="ед. (стак, мин…)" style="flex:1;margin:0;" />
                 </div>
               </div>
-              <div class="addRemRow" id="addRemRow" onclick="if(window.openRemModal){window.openRemModal(document.getElementById('habitNameInp').value.trim()||'Привычка',window._addRem||{enabled:false,time:'08:00',days:[1,2,3,4,5,6,7],before:10},function(rem){window._addRem=rem;var t=document.getElementById('addRemToggle');var d=document.getElementById('addRemDesc');if(t)t.classList.toggle('on',rem.enabled);if(d)d.textContent=rem.enabled?('🔔 '+rem.time):'Выключено';if(window._closeRemModal)window._closeRemModal();});}">
+              <div class="addRemRow" id="addRemRow">
                 <div>
                   <div class="addRemLabel">🔔 Напоминание</div>
                   <div class="addRemDesc" id="addRemDesc">Выключено</div>
                 </div>
-                <div class="iosToggle" id="addRemToggle" onclick="event.stopPropagation();if(window.openRemModal){window.openRemModal(document.getElementById('habitNameInp').value.trim()||'Привычка',window._addRem||{enabled:false,time:'08:00',days:[1,2,3,4,5,6,7],before:10},function(rem){window._addRem=rem;var t=document.getElementById('addRemToggle');var d=document.getElementById('addRemDesc');if(t)t.classList.toggle('on',rem.enabled);if(d)d.textContent=rem.enabled?('🔔 '+rem.time):'Выключено';if(window._closeRemModal)window._closeRemModal();});}else{this.classList.toggle('on');}"><div class="iosToggleThumb"></div></div>
+                <div class="iosToggle" id="addRemToggle"><div class="iosToggleThumb"></div></div>
               </div>
               <div style="display:flex;gap:8px;margin-top:10px;">
-                <button class="btn" id="btnSaveHabit" style="flex:1;margin:0;width:auto;" onclick="if(window._saveHabit)window._saveHabit();">💾 Сохранить</button>
-                <button class="btn secondary" id="btnCancelHabit" style="flex:0 0 auto;margin:0;width:auto;padding:10px 14px;" onclick="document.getElementById('habitsAddForm').style.display='none';document.getElementById('btnShowAddHabit').style.display='block';document.getElementById('habitNameInp').value='';">Отмена</button>
+                <button class="btn" id="btnSaveHabit" style="flex:1;margin:0;width:auto;">💾 Сохранить</button>
+                <button class="btn secondary" id="btnCancelHabit" style="flex:0 0 auto;margin:0;width:auto;padding:10px 14px;">Отмена</button>
               </div>
             </div>
 
-            <button class="btn secondary" id="btnShowAddHabit" style="margin-top:10px;" onclick="document.getElementById('habitsAddForm').style.display='block';this.style.display='none';">+ Добавить привычку</button>
+            <button class="btn secondary" id="btnShowAddHabit" style="margin-top:10px;">+ Добавить привычку</button>
             <div class="hint" id="habitsHint" style="margin-top:6px;"></div>
           </div>
         </section>
@@ -5835,6 +5834,9 @@
       });
     }
 
+    // Привязываем кнопки сразу при загрузке (inline onclick удалены)
+    bindHabitsUI();
+
     // Запускать при переходе на вкладку привычек
     document.addEventListener('click', e=>{
       const btn=e.target.closest('[data-tab="habits"]');
@@ -5844,46 +5846,9 @@
       if(e.detail==='habits'){ bindHabitsUI(); if(window._initHabits) window._initHabits(); }
     });
     // Также при старте если профиль уже есть
-    setTimeout(()=>{ if(external_user_id){ bindHabitsUI(); initHabits(); } }, 600);
+    setTimeout(()=>{ if(external_user_id){ initHabits(); } }, 600);
     window._initHabits = initHabits;
     window._closeRemModal = closeRemModal;
-
-    // Экспортируем saveHabit для onclick в HTML
-    window._saveHabit = async function(){
-      var nameEl = document.getElementById('habitNameInp');
-      var hint   = document.getElementById('habitsHint');
-      var name   = (nameEl ? nameEl.value : '').trim();
-      if(!name){
-        if(hint) hint.textContent = 'Введи название привычки.';
-        return;
-      }
-      if(hint) hint.textContent = '';
-      var saveBtn = document.getElementById('btnSaveHabit');
-      if(saveBtn){ saveBtn.disabled=true; saveBtn.textContent='Сохраняем…'; }
-
-      var def = {
-        id: 'h_'+Date.now(),
-        name: name,
-        type: habitType,
-        target: habitType==='number' ? (document.getElementById('habitTargetInp').value||'') : '',
-        unit:   habitType==='number' ? (document.getElementById('habitUnitInp').value||'')   : '',
-        reminder: _addRem && _addRem.enabled ? {..._addRem} : null,
-      };
-      var defs = loadDefs(); defs.push(def); saveDefs(defs);
-
-      if(external_user_id){
-        try{ await postForm(CONFIG.n8n.habit_defs_save, {
-          external_user_id, habit_id:def.id, name:def.name,
-          type:def.type, target:def.target||'', unit:def.unit||''
-        }); }catch{}
-      }
-
-      if(saveBtn){ saveBtn.disabled=false; saveBtn.textContent='💾 Сохранить'; }
-      document.getElementById('habitsAddForm').style.display='none';
-      document.getElementById('btnShowAddHabit').style.display='block';
-      if(nameEl) nameEl.value='';
-      await initHabits();
-    };
   })();
   // ======== END HABITS ========
 
