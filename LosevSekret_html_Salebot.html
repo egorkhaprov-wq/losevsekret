@@ -4465,7 +4465,7 @@
     const def = { id:'h_'+Date.now(), name, type:'check', reminder: _habitsAddRem.enabled ? {..._habitsAddRem} : null };
     const defs = _hLoadDefs(); defs.push(def); _hSaveDefs(defs);
     if(external_user_id){
-      try{ await postForm(CONFIG.n8n.habit_defs_save, { external_user_id, habit_id:def.id, name:def.name, type:'check', target:'', unit:'' }); }catch(e){}
+      try{ await postForm(CONFIG.n8n.habit_defs_save, { external_user_id, habit_id:def.id, name:def.name, type:'check', target:'0', unit:'none' }); }catch(e){}
     }
     if(_habitsAddRem.enabled && external_user_id){
       try{ await postForm(CONFIG.n8n.habit_reminder_set, { external_user_id, chat_id:String(state.profile?.chat_id||external_user_id), habit_id:def.id, habit_name:def.name, time:_habitsAddRem.time, days:_habitsAddRem.days.join(','), before_min:String(_habitsAddRem.before), enabled:'1' }); }catch(e){}
@@ -4498,14 +4498,14 @@
           const localOnly = localDefs.filter(d=>!serverIds.has(d.id));
           if(localOnly.length){
             defs = [...defs, ...localOnly];
-            for(const ldef of localOnly){ try{ await postForm(CONFIG.n8n.habit_defs_save, { external_user_id, habit_id:ldef.id, name:ldef.name, type:'check', target:'', unit:'' }); }catch(e){} }
+            for(const ldef of localOnly){ try{ await postForm(CONFIG.n8n.habit_defs_save, { external_user_id, habit_id:ldef.id, name:ldef.name, type:'check', target:'0', unit:'none' }); }catch(e){} }
           }
           _hSaveDefs(defs);
         } else {
           const localDefs = _hLoadDefs();
           if(localDefs.length){
             defs = localDefs;
-            for(const ldef of localDefs){ try{ await postForm(CONFIG.n8n.habit_defs_save, { external_user_id, habit_id:ldef.id, name:ldef.name, type:'check', target:'', unit:'' }); }catch(e){} }
+            for(const ldef of localDefs){ try{ await postForm(CONFIG.n8n.habit_defs_save, { external_user_id, habit_id:ldef.id, name:ldef.name, type:'check', target:'0', unit:'none' }); }catch(e){} }
           }
         }
       }catch(e){ defs = _hLoadDefs(); }
