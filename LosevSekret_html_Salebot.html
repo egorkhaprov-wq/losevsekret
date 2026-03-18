@@ -1074,39 +1074,24 @@
     .addRemLabel{font-size:14px;font-weight:800;color:rgba(255,255,255,.75);}
     .addRemDesc{font-size:12px;font-weight:600;color:rgba(255,255,255,.32);margin-top:2px;}
     /* ---- HABITS ---- */
-    .habitItem{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07);}
+    .habitItem{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.07);}
     .habitItem:last-child{border-bottom:none;}
     .habitCheckBtn{
-      width:30px;height:30px;flex:0 0 30px;border-radius:9px;
+      width:32px;height:32px;flex:0 0 32px;border-radius:10px;
       border:2px solid rgba(255,255,255,.22);background:transparent;
       cursor:pointer;display:flex;align-items:center;justify-content:center;
-      font-size:16px;transition:all .15s;-webkit-appearance:none;appearance:none;color:transparent;
+      font-size:17px;transition:all .18s;-webkit-appearance:none;appearance:none;color:transparent;
     }
     .habitCheckBtn.done{background:rgba(79,224,122,.22);border-color:rgba(79,224,122,.65);color:rgba(79,224,122,.95);}
     .habitInfo{flex:1;min-width:0;overflow:hidden;}
-    .habitName{font-size:14px;font-weight:800;color:rgba(255,255,255,.92);}
-    .habitName{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .habitName{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:rgba(255,255,255,.92);}
     .habitStreak{font-size:11px;font-weight:700;color:rgba(255,255,255,.38);margin-top:2px;}
     .habitStreak.hot{color:rgba(255,160,50,.85);}
-    .habitNumWrap{display:flex;align-items:center;gap:6px;flex:0 0 auto;}
-    .habitNumInput{
-      width:56px;text-align:center;margin:0 !important;padding:6px 8px !important;
-      background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);
-      color:rgba(255,255,255,.92);border-radius:10px;font-size:14px;font-weight:800;
-    }
-    .habitNumUnit{font-size:11px;color:rgba(255,255,255,.4);font-weight:700;}
     .habitDel{
-      width:26px;height:26px;flex:0 0 26px;border-radius:7px;
+      width:28px;height:28px;flex:0 0 28px;border-radius:8px;
       background:rgba(255,90,106,.10);border:none;color:rgba(255,90,106,.65);
-      font-size:15px;cursor:pointer;line-height:26px;text-align:center;
+      font-size:15px;cursor:pointer;line-height:28px;text-align:center;
     }
-    .habitsTypeRow{display:flex;gap:8px;margin:8px 0 10px;}
-    .habitsTypeBtn{
-      flex:1;padding:8px;border-radius:12px;border:1px solid rgba(255,255,255,.14);
-      background:rgba(255,255,255,.06);color:rgba(255,255,255,.55);
-      font-size:12px;font-weight:800;cursor:pointer;
-    }
-    .habitsTypeBtn.sel{background:rgba(120,160,255,.18);border-color:rgba(120,160,255,.45);color:rgba(120,160,255,.95);}
     /* ---- END HABITS ---- */
 
     .lockFull{
@@ -2107,39 +2092,21 @@
 
         <!-- HABITS TAB -->
         <section id="tabHabits" class="hide" style="position:relative;">
-          <div class="pageTitle">Привычки</div>
-
-          <!-- ДИАГНОСТИКА (скрыта) -->
-            <div id="habitsDiag" style="display:none;background:rgba(255,100,0,.15);border:1px solid rgba(255,100,0,.4);border-radius:12px;padding:12px;margin-bottom:12px;font-size:11px;color:rgba(255,255,255,.7);word-break:break-all;">
-              <div style="font-weight:700;margin-bottom:6px;">🔍 Диагностика</div>
-              <div id="diagUid" style="margin-bottom:4px;">UID: проверяется...</div>
-              <div id="diagResult" style="margin-bottom:6px;"></div>
-            </div>
+          <div class="pageTitle">Трекер Привычек</div>
 
           <div class="card" id="habitsCard">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
               <div class="sectionLabel" style="margin:0;">Сегодня</div>
-              <div id="habitsDateLbl" style="font-size:11px;font-weight:700;color:rgba(255,255,255,.38);"></div>
+              <div id="habitsDateLbl" style="font-size:12px;font-weight:700;color:rgba(255,255,255,.38);"></div>
             </div>
 
             <div id="habitsList"></div>
-            <div id="habitsEmpty" style="text-align:center;padding:18px 0;color:rgba(255,255,255,.28);font-size:13px;font-weight:700;">Нет привычек — добавь первую ↓</div>
-            <div id="habitsDebug" style="font-size:10px;color:rgba(255,255,255,.25);word-break:break-all;margin-top:4px;display:none;"></div>
+            <div id="habitsEmpty" style="text-align:center;padding:24px 0;color:rgba(255,255,255,.28);font-size:14px;font-weight:700;">Нет привычек — добавь первую ↓</div>
 
             <!-- форма добавления новой привычки -->
             <div id="habitsAddForm" style="display:none;border-top:1px solid rgba(255,255,255,.08);margin-top:12px;padding-top:12px;">
               <div class="sectionLabel">Новая привычка</div>
               <input id="habitNameInp" placeholder="Например: Выпить воду" style="margin-top:6px;" />
-              <div class="habitsTypeRow" style="display:none;">
-                <button class="habitsTypeBtn sel" id="htBtnCheck">✓ Да / Нет</button>
-                <button class="habitsTypeBtn" id="htBtnNum">123 Число</button>
-              </div>
-              <div id="habitNumFields" style="display:none;">
-                <div style="display:flex;gap:8px;">
-                  <input id="habitTargetInp" type="number" inputmode="numeric" placeholder="Цель (напр. 8)" style="flex:1;margin:0;" />
-                  <input id="habitUnitInp" placeholder="ед. (стак, мин…)" style="flex:1;margin:0;" />
-                </div>
-              </div>
               <div class="addRemRow" id="addRemRow">
                 <div>
                   <div class="addRemLabel">🔔 Напоминание</div>
@@ -2148,7 +2115,7 @@
                 <div class="iosToggle" id="addRemToggle"><div class="iosToggleThumb"></div></div>
               </div>
               <div style="display:flex;gap:8px;margin-top:10px;">
-                <button class="btn" id="btnSaveHabit" style="flex:1;margin:0;width:auto;">💾 Сохранить</button>
+                <button class="btn" id="btnSaveHabit" style="flex:1;margin:0;width:auto;">Сохранить</button>
                 <button class="btn secondary" id="btnCancelHabit" style="flex:0 0 auto;margin:0;width:auto;padding:10px 14px;">Отмена</button>
               </div>
             </div>
@@ -3046,11 +3013,11 @@
             <span class="tabIcon">👤</span>
             <div class="lbl">Профиль</div>
           </button>
-          <button class="tabbtn" id="tabBtnHabits" data-tab="habits" title="Привычки"
+          <button class="tabbtn" id="tabBtnHabits" data-tab="habits" title="Трекер Привычек"
             style="--tab-color:#F59E0B"
             onclick="setTimeout(function(){if(window._initHabits)window._initHabits();},300);">
             <div class="tabPill" style="background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.28)"></div>
-            <span class="tabIcon">⚡</span>
+            <span class="tabIcon">✅</span>
             <div class="lbl">Привычки</div>
           </button>
           <button id="tabBtnWorkouts" class="tabbtn" aria-label="Тренировки"
@@ -5320,209 +5287,186 @@
   // ======== END WATER ========
 
   // ======== HABITS ========
+  // ======== HABITS (rebuilt) ========
   (function(){
-    const STORE_KEY = 'habits_defs_v1';
-    const LOGS_CACHE_KEY = 'habits_logs_cache_v1';
-    let habitType = 'check'; // 'check' | 'number'
+    const STORE_KEY = 'habits_defs_v2';
+    const LOGS_CACHE_KEY = 'habits_logs_cache_v2';
 
-    // Локальное хранилище определений привычек
+    /* ── localStorage helpers ── */
     function loadDefs(){
-      try{ return JSON.parse(localStorage.getItem(STORE_KEY)||'[]'); }catch{ return []; }
+      try{
+        const v2 = JSON.parse(localStorage.getItem(STORE_KEY)||'null');
+        if(v2) return v2;
+        // migrate from v1 if exists
+        const v1 = JSON.parse(localStorage.getItem('habits_defs_v1')||'null');
+        if(v1 && v1.length){ localStorage.setItem(STORE_KEY, JSON.stringify(v1)); return v1; }
+        return [];
+      }catch{ return []; }
     }
-    function saveDefs(defs){ localStorage.setItem(STORE_KEY, JSON.stringify(defs)); }
+    function saveDefs(arr){ localStorage.setItem(STORE_KEY, JSON.stringify(arr)); }
 
-    // Кэш логов: { "YYYY-MM-DD": { "habit_id": "value", ... } }
     function loadLogsCache(){
       try{ return JSON.parse(localStorage.getItem(LOGS_CACHE_KEY)||'{}'); }catch{ return {}; }
     }
     function saveLogToCache(date, habit_id, value){
-      const cache = loadLogsCache();
-      if(!cache[date]) cache[date] = {};
-      cache[date][habit_id] = value;
-      // Чистим кэш старше 7 дней
+      const c = loadLogsCache();
+      if(!c[date]) c[date] = {};
+      c[date][habit_id] = value;
       const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-7);
-      for(const d of Object.keys(cache)){
-        if(new Date(d+'T00:00:00') < cutoff) delete cache[d];
-      }
-      localStorage.setItem(LOGS_CACHE_KEY, JSON.stringify(cache));
+      for(const d of Object.keys(c)){ if(new Date(d+'T00:00:00') < cutoff) delete c[d]; }
+      localStorage.setItem(LOGS_CACHE_KEY, JSON.stringify(c));
     }
     function removeLogFromCache(date, habit_id){
-      const cache = loadLogsCache();
-      if(cache[date]) delete cache[date][habit_id];
-      localStorage.setItem(LOGS_CACHE_KEY, JSON.stringify(cache));
+      const c = loadLogsCache();
+      if(c[date]) delete c[date][habit_id];
+      localStorage.setItem(LOGS_CACHE_KEY, JSON.stringify(c));
     }
 
-    // Получить дату сегодня Europe/Moscow
+    /* ── Date helpers (Europe/Moscow) ── */
     function todayStr(){
       return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow'}).format(new Date());
     }
+    function prevDay(ds){
+      const d = new Date(ds+'T12:00:00'); d.setDate(d.getDate()-1);
+      return d.toISOString().slice(0,10);
+    }
+    function formatDateRu(ds){
+      const d = new Date(ds+'T12:00:00');
+      return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+    }
 
-    // Загрузить логи за последние 32 дня с сервера, смержив с локальным кэшем
+    /* ── Server communication ── */
     async function loadLogs(){
       const today = todayStr();
       let serverLogs = [];
       if(external_user_id){
         try{
-          const r = await postForm(CONFIG.n8n.habits_get,{external_user_id});
+          const r = await postForm(CONFIG.n8n.habits_get, {external_user_id});
           serverLogs = r?.ok ? (r.logs||[]) : [];
         }catch{ serverLogs = []; }
       }
-      // Мержим: дополняем серверные логи записями из кэша на сегодня
+      // merge local cache for today
       const cache = loadLogsCache();
       const todayCache = cache[today] || {};
-      // Убираем дубликаты из serverLogs за сегодня, потом добавляем кэш
-      const serverTodayIds = new Set(serverLogs.filter(l=>l.date===today).map(l=>l.habit_id));
-      for(const [habit_id, value] of Object.entries(todayCache)){
-        if(!serverTodayIds.has(habit_id)){
-          serverLogs.push({habit_id, date: today, value});
-        }
+      const serverIds = new Set(serverLogs.filter(l=>l.date===today).map(l=>l.habit_id));
+      for(const [hid, val] of Object.entries(todayCache)){
+        if(!serverIds.has(hid)) serverLogs.push({habit_id:hid, date:today, value:val});
       }
       return serverLogs;
     }
 
-    // Отправить лог на сервер и сохранить в кэш
     async function sendLog(habit_id, date, value){
-      // Сначала сохраняем локально — чтобы при перезагрузке не потерялось
-      if(String(value) === '0' || value === ''){
+      if(String(value)==='0' || value===''){
         removeLogFromCache(date, habit_id);
       } else {
         saveLogToCache(date, habit_id, String(value));
       }
       try{
-        await postForm(CONFIG.n8n.habits_log,{external_user_id, habit_id, date, value: String(value)});
-      }catch(e){ console.warn('habits_log error',e); }
+        await postForm(CONFIG.n8n.habits_log, {external_user_id, habit_id, date, value:String(value)});
+      }catch(e){ console.warn('habits_log err', e); }
     }
 
-    // Посчитать streak по логам одной привычки (массив дат desc)
+    /* ── Streak calculation ── */
     function calcStreak(dates){
       if(!dates.length) return 0;
       const sorted = [...dates].sort((a,b)=>b.localeCompare(a));
       const today = todayStr();
       let streak = 0, cur = today;
       for(const d of sorted){
-        if(d === cur){ streak++; cur = prevDay(cur); }
-        else break;
+        if(d===cur){ streak++; cur=prevDay(cur); } else break;
       }
-      // если сегодня ещё нет — считаем со вчера
       if(streak===0){
         cur = prevDay(today);
         for(const d of sorted){
-          if(d === cur){ streak++; cur = prevDay(cur); }
-          else break;
+          if(d===cur){ streak++; cur=prevDay(cur); } else break;
         }
       }
       return streak;
     }
-    function prevDay(dateStr){
-      const d=new Date(dateStr+'T00:00:00'); d.setDate(d.getDate()-1);
-      return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow'}).format(d);
-    }
 
-    // Сформировать Map: habit_id → {doneToday, value, streakDates[]}
+    /* ── Build status map from logs ── */
     function buildStatus(logs, today){
-      const map = {};
-      for(const log of logs){
-        if(!map[log.habit_id]) map[log.habit_id]={doneToday:false,value:'',dates:[]};
-        const entry = map[log.habit_id];
-        if(log.date===today){ entry.doneToday=true; entry.value=log.value; }
-        if(!entry.dates.includes(log.date)) entry.dates.push(log.date);
+      const m = {};
+      for(const l of logs){
+        if(!m[l.habit_id]) m[l.habit_id] = {doneToday:false, value:'', dates:[]};
+        const e = m[l.habit_id];
+        if(l.date===today && String(l.value)!=='0'){ e.doneToday=true; e.value=l.value; }
+        if(!e.dates.includes(l.date) && String(l.value)!=='0') e.dates.push(l.date);
       }
-      return map;
+      return m;
     }
 
-    // Рендер списка
+    /* ── Render habit list ── */
     function render(defs, status, today){
-      const list = document.getElementById('habitsList');
+      const list  = document.getElementById('habitsList');
       const empty = document.getElementById('habitsEmpty');
-      const lbl = document.getElementById('habitsDateLbl');
-      if(lbl) lbl.textContent = today;
+      const lbl   = document.getElementById('habitsDateLbl');
+      if(lbl) lbl.textContent = formatDateRu(today);
       if(!defs.length){ list.innerHTML=''; empty.style.display='block'; return; }
       empty.style.display='none';
       list.innerHTML='';
+
       for(const def of defs){
-        const st = status[def.id]||{doneToday:false,value:'',dates:[]};
+        const st = status[def.id] || {doneToday:false, value:'', dates:[]};
         const streak = calcStreak(st.dates);
         const div = document.createElement('div');
-        div.className='habitItem';
+        div.className = 'habitItem';
 
-        if(def.type==='check'){
-          const remAct = def.reminder?.enabled ? ' bellActive' : '';
-          div.innerHTML=`
-            <button class="habitCheckBtn${st.doneToday?' done':''}" data-id="${def.id}" title="Отметить">✓</button>
-            <div class="habitInfo">
-              <div class="habitName">${def.name}</div>
-              <div class="habitStreak${streak>=3?' hot':''}">🔥 Серия: ${streak} дн.</div>
-            </div>
-            <button class="habitBell${remAct}" data-id="${def.id}" title="Напоминание" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;line-height:1;">🔔</button>
-            <button class="habitDel" data-id="${def.id}" title="Удалить">✕</button>`;
-          div.querySelector('.habitCheckBtn').onclick = async function(){
-            const done=this.classList.contains('done');
-            const newVal=done?'0':'1';
-            this.classList.toggle('done',!done);
-            this.closest('.habitItem').querySelector('.habitStreak').textContent=
-              '🔥 Серия: '+(done?Math.max(0,streak-1):streak+(st.doneToday?0:1))+' дн.';
-            st.doneToday=!done; st.value=newVal;
-            if(!done && !st.dates.includes(today)) st.dates.push(today);
-            if(done) st.dates=st.dates.filter(d=>d!==today);
-            await sendLog(def.id, today, newVal);
-          };
-        } else {
-          const goalText = def.target ? ` / ${def.target} ${def.unit||''}` : (def.unit||'');
-          const remAct2 = def.reminder?.enabled ? ' bellActive' : '';
-          div.innerHTML=`
-            <div class="habitInfo">
-              <div class="habitName">${def.name}</div>
-              <div class="habitStreak${streak>=3?' hot':''}">🔥 Серия: ${streak} дн.</div>
-            </div>
-            <div class="habitNumWrap">
-              <input class="habitNumInput" type="number" inputmode="decimal" value="${st.doneToday?st.value:''}" placeholder="0" data-id="${def.id}" />
-              <span class="habitNumUnit">${goalText}</span>
-            </div>
-            <button class="habitBell${remAct2}" data-id="${def.id}" title="Напоминание" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;line-height:1;">🔔</button>
-            <button class="habitDel" data-id="${def.id}" title="Удалить">✕</button>`;
-          let timer;
-          div.querySelector('.habitNumInput').oninput = function(){
-            clearTimeout(timer);
-            const v=this.value;
-            timer=setTimeout(async()=>{
-              if(!v) return;
-              st.doneToday=true; st.value=v;
-              if(!st.dates.includes(today)) st.dates.push(today);
-              await sendLog(def.id, today, v);
-            }, 800);
-          };
-        }
+        const bellActive = def.reminder?.enabled ? ' bellActive' : '';
+        div.innerHTML = `
+          <button class="habitCheckBtn${st.doneToday?' done':''}" data-id="${def.id}" title="Отметить">✓</button>
+          <div class="habitInfo">
+            <div class="habitName">${esc(def.name)}</div>
+            <div class="habitStreak${streak>=3?' hot':''}">${streak>0 ? '🔥 '+streak+' дн. подряд' : 'Ещё нет серии'}</div>
+          </div>
+          <button class="habitBell${bellActive}" data-id="${def.id}" title="Напоминание" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;line-height:1;">🔔</button>
+          <button class="habitDel" data-id="${def.id}" title="Удалить">✕</button>`;
 
+        // check button handler
+        div.querySelector('.habitCheckBtn').onclick = async function(){
+          const wasDone = this.classList.contains('done');
+          const newVal = wasDone ? '0' : '1';
+          this.classList.toggle('done', !wasDone);
+          // update streak text immediately
+          st.doneToday = !wasDone;
+          st.value = newVal;
+          if(!wasDone && !st.dates.includes(today)) st.dates.push(today);
+          if(wasDone) st.dates = st.dates.filter(d=>d!==today);
+          const newStreak = calcStreak(st.dates);
+          const streakEl = this.closest('.habitItem').querySelector('.habitStreak');
+          streakEl.textContent = newStreak>0 ? '🔥 '+newStreak+' дн. подряд' : 'Ещё нет серии';
+          streakEl.classList.toggle('hot', newStreak>=3);
+          await sendLog(def.id, today, newVal);
+        };
+
+        // delete handler
         div.querySelector('.habitDel').onclick = async function(){
           if(!confirm('Удалить привычку «'+def.name+'»?')) return;
-          const defs2=loadDefs().filter(d=>d.id!==def.id);
+          const defs2 = loadDefs().filter(d=>d.id!==def.id);
           saveDefs(defs2);
-          // Удаляем с сервера
           if(external_user_id){
-            try{ await postForm(CONFIG.n8n.habit_def_delete, {external_user_id, habit_id: def.id}); }catch{}
+            try{ await postForm(CONFIG.n8n.habit_def_delete, {external_user_id, habit_id:def.id}); }catch{}
           }
           await initHabits();
         };
+
         list.appendChild(div);
       }
     }
 
+    // Escape HTML for XSS safety
+    function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
-    // ── REMINDER MODAL ──────────────────────────────────────────
+    /* ── Reminder modal ── */
     const DAY_LABELS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+    let _addRem = {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
 
-    // Pending reminder for add-form
-    let _addRem = { enabled: false, time: '08:00', days: [1,2,3,4,5,6,7], before: 10 };
-    window._addRem = _addRem;
-    window.openRemModal = function(name, rem, cb){ openRemModal(name, rem, cb); };
-
-    // Build modal content and wire events
-    function openRemModal(habitName, initRem, onSave) {
-      const rem   = initRem || { enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10 };
+    function openRemModal(habitName, initRem, onSave){
+      const rem   = initRem || {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
       const modal = document.getElementById('remModal');
       const sub   = document.getElementById('remModalSubtitle');
       const body  = document.getElementById('remModalBody');
-      if (sub) sub.textContent = habitName || '';
+      if(sub) sub.textContent = habitName || '';
 
       body.innerHTML = `
         <div class="remSwitchRow" id="remSwitchRow">
@@ -5549,27 +5493,23 @@
               ${DAY_LABELS.map((l,i)=>`<button class="rdBtn${(rem.days||[]).includes(i+1)?' sel':''}" data-day="${i+1}">${l}</button>`).join('')}
             </div>
           </div>
-          <button class="btn" id="remSaveBtn" style="width:100%;padding:15px;font-size:16px;font-weight:900;">💾 Сохранить</button>
+          <button class="btn" id="remSaveBtn" style="width:100%;padding:15px;font-size:16px;font-weight:900;">Сохранить</button>
           <div class="hint" id="remHint" style="text-align:center;"></div>
         </div>`;
 
-      // Toggle click — вся строка кликабельна
       const toggleBtn = body.querySelector('#remToggleBtn');
       const settings  = body.querySelector('#remSettings');
       const switchRow = body.querySelector('#remSwitchRow');
 
-      function setEnabled(on) {
+      switchRow.onclick = () => {
+        const on = !toggleBtn.classList.contains('on');
         toggleBtn.classList.toggle('on', on);
         settings.style.display = on ? 'flex' : 'none';
-      }
-      switchRow.onclick = () => setEnabled(!toggleBtn.classList.contains('on'));
+      };
 
-      // Days
       body.querySelectorAll('.rdBtn').forEach(b => {
         b.onclick = (e) => { e.stopPropagation(); b.classList.toggle('sel'); };
       });
-
-      // Before
       body.querySelectorAll('.remBeforeBtn').forEach(b => {
         b.onclick = (e) => {
           e.stopPropagation();
@@ -5578,107 +5518,97 @@
         };
       });
 
-      // Save
       body.querySelector('#remSaveBtn').onclick = async () => {
-        vib();
+        if(typeof vib==='function') vib();
         const btn = body.querySelector('#remSaveBtn');
-        // Show spinner
-        btn.classList.add('loading-state');
-        btn.innerHTML = '<span class="btnSpinner"></span>Сохраняем…';
+        btn.disabled = true;
+        btn.textContent = 'Сохраняем...';
         const enabled = toggleBtn.classList.contains('on');
         const time    = body.querySelector('#remTimeInp')?.value || '08:00';
         const days    = [...body.querySelectorAll('.rdBtn.sel')].map(b=>Number(b.dataset.day));
         const before  = Number(body.querySelector('.remBeforeBtn.sel')?.dataset.before || 10);
         const hint    = body.querySelector('#remHint');
-        await onSave({ enabled, time, days, before }, hint);
-        // Restore button (if modal still open)
-        btn.classList.remove('loading-state');
-        btn.innerHTML = '💾 Сохранить';
+        await onSave({enabled, time, days, before}, hint);
+        btn.disabled = false;
+        btn.textContent = 'Сохранить';
       };
 
       modal.classList.add('open');
       modal.scrollTop = 0;
     }
 
-    function closeRemModal() {
+    function closeRemModal(){
       document.getElementById('remModal').classList.remove('open');
     }
 
+    window.openRemModal  = openRemModal;
+    window._closeRemModal = closeRemModal;
+
+    // Close modal buttons
     document.getElementById('remModalClose').onclick = closeRemModal;
-    // Close on back swipe (Android)
     document.getElementById('remModal').addEventListener('click', e => {
-      if (e.target === document.getElementById('remModal')) closeRemModal();
+      if(e.target === document.getElementById('remModal')) closeRemModal();
     });
 
-    // ── Bell click → open modal for existing habit ──
+    /* ── Bell click on existing habit ── */
     document.getElementById('habitsList').addEventListener('click', e => {
       const bell = e.target.closest('.habitBell');
-      if (!bell) return;
+      if(!bell) return;
       const id  = bell.dataset.id;
-      const def = loadDefs().find(d => d.id === id);
-      if (!def) return;
+      const def = loadDefs().find(d=>d.id===id);
+      if(!def) return;
 
       openRemModal(def.name, def.reminder, async (rem, hint) => {
-        // Save to defs
         const defs = loadDefs();
-        const idx  = defs.findIndex(d => d.id === id);
-        if (idx === -1) return;
+        const idx  = defs.findIndex(d=>d.id===id);
+        if(idx===-1) return;
         defs[idx].reminder = rem;
         saveDefs(defs);
-        // Update bell icon
-        const bellEl = document.querySelector(`.habitBell[data-id="${id}"]`);
-        if (bellEl) bellEl.classList.toggle('bellActive', rem.enabled);
-        // Send to n8n
-        if (external_user_id && rem.enabled) {
-          try {
+        const bellEl = document.querySelector('.habitBell[data-id="'+id+'"]');
+        if(bellEl) bellEl.classList.toggle('bellActive', rem.enabled);
+        if(external_user_id && rem.enabled){
+          try{
             await postForm(CONFIG.n8n.habit_reminder_set, {
               external_user_id,
-              chat_id: String(state.profile?.chat_id || external_user_id),
-              habit_id: id, habit_name: def.name,
-              time: rem.time, days: rem.days.join(','),
-              before_min: String(rem.before), enabled: '1'
+              chat_id: String(state.profile?.chat_id||external_user_id),
+              habit_id:id, habit_name:def.name,
+              time:rem.time, days:rem.days.join(','),
+              before_min:String(rem.before), enabled:'1'
             });
-            if (hint) hint.textContent = '✅ Напоминание сохранено!';
-          } catch { if (hint) hint.textContent = '⚠️ Сохранено локально'; }
-        } else if (external_user_id) {
-          try { await postForm(CONFIG.n8n.habit_reminder_set, { external_user_id, habit_id: id, enabled: '0' }); } catch {}
-          if (hint) hint.textContent = '🔕 Напоминание выключено';
+            if(hint) hint.textContent = 'Напоминание сохранено!';
+          }catch{ if(hint) hint.textContent = 'Сохранено локально'; }
+        } else if(external_user_id){
+          try{ await postForm(CONFIG.n8n.habit_reminder_set,{external_user_id, habit_id:id, enabled:'0'}); }catch{}
+          if(hint) hint.textContent = 'Напоминание выключено';
         } else {
-          if (hint) hint.textContent = rem.enabled ? '✅ Сохранено' : '🔕 Выключено';
+          if(hint) hint.textContent = rem.enabled ? 'Сохранено' : 'Выключено';
         }
-        setTimeout(closeRemModal, 1600);
+        setTimeout(closeRemModal, 1200);
       });
     });
 
-    // ── addRemRow → open modal from add-form ──
+    /* ── Reminder toggle in add-form ── */
     document.getElementById('addRemRow').addEventListener('click', () => {
-      vib();
-      const habitName = document.getElementById('habitNameInp').value.trim() || 'Новая привычка';
-      openRemModal(habitName, _addRem, async (rem) => {
+      if(typeof vib==='function') vib();
+      const name = document.getElementById('habitNameInp').value.trim() || 'Новая привычка';
+      openRemModal(name, _addRem, async (rem) => {
         _addRem = rem;
-        // Update toggle in add-form
         const t = document.getElementById('addRemToggle');
-        if (t) t.classList.toggle('on', rem.enabled);
-        // Update description
+        if(t) t.classList.toggle('on', rem.enabled);
         const desc = document.getElementById('addRemDesc');
-        if (desc) desc.textContent = rem.enabled
-          ? `${rem.time} · ${rem.days.length} дн · за ${rem.before} мин`
+        if(desc) desc.textContent = rem.enabled
+          ? rem.time+' · '+rem.days.length+' дн · за '+rem.before+' мин'
           : 'Выключено';
         closeRemModal();
       });
     });
-    // ── END REMINDER ────────────────────────────────────────────
 
-    // Инициализация
+    /* ── Init: load defs from server + localStorage ── */
     async function initHabits(){
       let defs = [];
-      const debugEl = document.getElementById('habitsDebug');
-
       if(external_user_id){
         try{
           const r = await postForm(CONFIG.n8n.habit_defs_get, {external_user_id});
-          if(debugEl){ debugEl.textContent = 'habit_defs_get: ' + JSON.stringify(r); debugEl.style.display='block'; }
-
           let rawDefs = null;
           if(r?.ok && Array.isArray(r.defs)) rawDefs = r.defs;
           else if(Array.isArray(r)) rawDefs = r;
@@ -5687,167 +5617,141 @@
           else if(Array.isArray(r?.habits)) rawDefs = r.habits;
 
           if(rawDefs && rawDefs.length){
-            defs = rawDefs.map(d => ({
-              id:     d.id || d.habit_id || String(d.id),
-              name:   d.name || d.habit_name || d.title || 'Привычка',
-              type:   d.type || d.habit_type || 'check',
-              target: d.target || d.goal || '',
-              unit:   d.unit || '',
+            defs = rawDefs.map(d=>({
+              id:       d.id || d.habit_id || String(d.id),
+              name:     d.name || d.habit_name || d.title || 'Привычка',
+              type:     'check',
               reminder: d.reminder || null,
             }));
-            // Мержим с localStorage — берём максимальный набор
+            // merge local-only defs
             const localDefs = loadDefs();
-            const serverIds = new Set(defs.map(d => d.id));
-            const localOnly = localDefs.filter(d => !serverIds.has(d.id));
+            const serverIds = new Set(defs.map(d=>d.id));
+            const localOnly = localDefs.filter(d=>!serverIds.has(d.id));
             if(localOnly.length){
-              // Есть локальные привычки которых нет на сервере — синхронизируем
               defs = [...defs, ...localOnly];
               for(const def of localOnly){
                 try{ await postForm(CONFIG.n8n.habit_defs_save, {
-                  external_user_id, habit_id:def.id, name:def.name,
-                  type:def.type||'check', target:def.target||'', unit:def.unit||''
+                  external_user_id, habit_id:def.id, name:def.name, type:'check', target:'', unit:''
                 }); }catch{}
               }
             }
             saveDefs(defs);
           } else {
-            // БД пустая — берём из localStorage и мигрируем в БД
+            // server empty — migrate localStorage to server
             const localDefs = loadDefs();
             if(localDefs.length){
-              if(debugEl) debugEl.textContent += ' | Мигрируем ' + localDefs.length + ' привычек из localStorage в БД...';
               defs = localDefs;
-              // Сохраняем каждую привычку в БД
               for(const def of localDefs){
-                try{
-                  await postForm(CONFIG.n8n.habit_defs_save, {
-                    external_user_id,
-                    habit_id: def.id,
-                    name: def.name,
-                    type: def.type || 'check',
-                    target: def.target || '',
-                    unit: def.unit || ''
-                  });
-                }catch(e){ console.warn('migrate habit error', e); }
+                try{ await postForm(CONFIG.n8n.habit_defs_save, {
+                  external_user_id, habit_id:def.id, name:def.name, type:'check', target:'', unit:''
+                }); }catch(e){ console.warn('migrate err', e); }
               }
-              if(debugEl) debugEl.textContent += ' Готово!';
             }
           }
         }catch(e){
-          if(debugEl){ debugEl.textContent = 'Ошибка: ' + e.message; debugEl.style.display='block'; }
+          console.warn('habits init err', e);
           defs = loadDefs();
         }
       } else {
         defs = loadDefs();
       }
 
-      const today = todayStr();
-      const logs  = await loadLogs();
-      const status= buildStatus(logs, today);
+      const today  = todayStr();
+      const logs   = await loadLogs();
+      const status = buildStatus(logs, today);
       render(defs, status, today);
     }
 
-    // Тип новой привычки
-    window.habitSetType = function(t){
-      habitType=t;
-      document.getElementById('htBtnCheck').classList.toggle('sel',t==='check');
-      document.getElementById('htBtnNum').classList.toggle('sel',t==='number');
-      document.getElementById('habitNumFields').style.display=t==='number'?'block':'none';
-    };
+    /* ── Bind UI buttons ── */
+    let _bound = false;
+    function bindUI(){
+      if(_bound) return;
+      _bound = true;
 
-    // Запуск когда профиль готов
-    const _origSetProfileUI = window._origSetProfileUI;
-
-    // Привязываем кнопки при первом открытии вкладки (iOS требует видимый элемент)
-    let _habitsUIBound = false;
-    function bindHabitsUI(){
-      if(_habitsUIBound) return;
-      _habitsUIBound = true;
-
-      function addTap(id, fn){
-        const el = document.getElementById(id);
+      const $  = id => document.getElementById(id);
+      const on = (id, fn) => {
+        const el = $(id);
         if(!el) return;
         el.style.touchAction = 'manipulation';
-        el.removeEventListener('click', fn);
         el.addEventListener('click', fn);
-      }
+      };
 
-      addTap('btnShowAddHabit', ()=>{
-        document.getElementById('habitsAddForm').style.display='block';
-        document.getElementById('btnShowAddHabit').style.display='none';
+      on('btnShowAddHabit', () => {
+        $('habitsAddForm').style.display = 'block';
+        $('btnShowAddHabit').style.display = 'none';
       });
-      addTap('btnCancelHabit', ()=>{
-        document.getElementById('habitsAddForm').style.display='none';
-        document.getElementById('btnShowAddHabit').style.display='block';
-        document.getElementById('habitNameInp').value='';
-        document.getElementById('habitTargetInp').value='';
-        document.getElementById('habitUnitInp').value='';
-        habitSetType('check');
-        _addRem={enabled:false,time:'08:00',days:[1,2,3,4,5,6,7],before:10};
-        const t=document.getElementById('addRemToggle'); if(t) t.classList.remove('on');
-        const d=document.getElementById('addRemDesc'); if(d) d.textContent='Выключено';
+
+      on('btnCancelHabit', () => {
+        $('habitsAddForm').style.display = 'none';
+        $('btnShowAddHabit').style.display = 'block';
+        $('habitNameInp').value = '';
+        _addRem = {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
+        const t = $('addRemToggle'); if(t) t.classList.remove('on');
+        const d = $('addRemDesc');   if(d) d.textContent = 'Выключено';
       });
-      addTap('htBtnCheck', ()=>habitSetType('check'));
-      addTap('htBtnNum', ()=>habitSetType('number'));
-      addTap('btnSaveHabit', async()=>{
-        const name=document.getElementById('habitNameInp').value.trim();
-        const hint=document.getElementById('habitsHint');
-        if(!name){ hint.textContent='Введи название привычки.'; return; }
-        hint.textContent='';
-        const saveBtn=document.getElementById('btnSaveHabit');
-        saveBtn.disabled = true;
-        saveBtn.textContent = 'Сохраняем…';
-        const def={
-          id:'h_'+Date.now(),
-          name,
-          type: habitType,
-          target: habitType==='number' ? document.getElementById('habitTargetInp').value.trim() : '',
-          unit:   habitType==='number' ? document.getElementById('habitUnitInp').value.trim() : '',
+
+      on('btnSaveHabit', async () => {
+        const nameInp = $('habitNameInp');
+        const name = nameInp.value.trim();
+        const hint = $('habitsHint');
+        if(!name){ hint.textContent = 'Введи название привычки.'; return; }
+        hint.textContent = '';
+        const btn = $('btnSaveHabit');
+        btn.disabled = true;
+        btn.textContent = 'Сохраняем...';
+
+        const def = {
+          id:   'h_'+Date.now(),
+          name: name,
+          type: 'check',
           reminder: _addRem.enabled ? {..._addRem} : null,
         };
-        const defs=loadDefs(); defs.push(def); saveDefs(defs);
+        const defs = loadDefs();
+        defs.push(def);
+        saveDefs(defs);
+
         if(external_user_id){
           try{ await postForm(CONFIG.n8n.habit_defs_save, {
-            external_user_id,
-            habit_id: def.id,
-            name: def.name,
-            type: def.type,
-            target: def.target||'',
-            unit: def.unit||''
+            external_user_id, habit_id:def.id, name:def.name, type:'check', target:'', unit:''
           }); }catch{}
         }
         if(_addRem.enabled && external_user_id){
-          try{ await postForm(CONFIG.n8n.habit_reminder_set,{
+          try{ await postForm(CONFIG.n8n.habit_reminder_set, {
             external_user_id, chat_id:String(state.profile?.chat_id||external_user_id),
             habit_id:def.id, habit_name:def.name,
             time:_addRem.time, days:_addRem.days.join(','),
             before_min:String(_addRem.before), enabled:'1'
           }); }catch{}
         }
-        _addRem={enabled:false,time:'08:00',days:[1,2,3,4,5,6,7],before:10};
-        saveBtn.disabled = false;
-        saveBtn.textContent = '💾 Сохранить';
-        document.getElementById('habitsAddForm').style.display='none';
-        document.getElementById('btnShowAddHabit').style.display='block';
-        document.getElementById('habitNameInp').value='';
+
+        // reset form
+        _addRem = {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
+        btn.disabled = false;
+        btn.textContent = 'Сохранить';
+        $('habitsAddForm').style.display = 'none';
+        $('btnShowAddHabit').style.display = 'block';
+        nameInp.value = '';
+        const t = $('addRemToggle'); if(t) t.classList.remove('on');
+        const d = $('addRemDesc');   if(d) d.textContent = 'Выключено';
         await initHabits();
       });
     }
 
-    // Привязываем кнопки сразу при загрузке (inline onclick удалены)
-    bindHabitsUI();
+    // Bind immediately
+    bindUI();
 
-    // Запускать при переходе на вкладку привычек
-    document.addEventListener('click', e=>{
-      const btn=e.target.closest('[data-tab="habits"]');
-      if(btn){ bindHabitsUI(); setTimeout(initHabits, 150); }
+    // Init on tab switch
+    document.addEventListener('click', e => {
+      const btn = e.target.closest('[data-tab="habits"]');
+      if(btn){ bindUI(); setTimeout(initHabits, 150); }
     });
-    document.addEventListener('tabChanged', e=>{
-      if(e.detail==='habits'){ bindHabitsUI(); if(window._initHabits) window._initHabits(); }
+    document.addEventListener('tabChanged', e => {
+      if(e.detail==='habits'){ bindUI(); initHabits(); }
     });
-    // Также при старте если профиль уже есть
-    setTimeout(()=>{ if(external_user_id){ initHabits(); } }, 600);
+
+    // Init on load if user is known
+    setTimeout(() => { if(external_user_id) initHabits(); }, 600);
     window._initHabits = initHabits;
-    window._closeRemModal = closeRemModal;
   })();
   // ======== END HABITS ========
 
