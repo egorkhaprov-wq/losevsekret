@@ -2107,7 +2107,7 @@
             <div id="habitsAddForm" style="display:none;border-top:1px solid rgba(255,255,255,.08);margin-top:12px;padding-top:12px;">
               <div class="sectionLabel">Новая привычка</div>
               <input id="habitNameInp" placeholder="Например: Выпить воду" style="margin-top:6px;" />
-              <div class="addRemRow" id="addRemRow">
+              <div class="addRemRow" onclick="window._habitsOpenRem()">
                 <div>
                   <div class="addRemLabel">🔔 Напоминание</div>
                   <div class="addRemDesc" id="addRemDesc">Выключено</div>
@@ -2115,12 +2115,12 @@
                 <div class="iosToggle" id="addRemToggle"><div class="iosToggleThumb"></div></div>
               </div>
               <div style="display:flex;gap:8px;margin-top:10px;">
-                <button class="btn" id="btnSaveHabit" style="flex:1;margin:0;width:auto;">Сохранить</button>
-                <button class="btn secondary" id="btnCancelHabit" style="flex:0 0 auto;margin:0;width:auto;padding:10px 14px;">Отмена</button>
+                <button class="btn" id="btnSaveHabit" style="flex:1;margin:0;width:auto;" onclick="window._habitsSave()">Сохранить</button>
+                <button class="btn secondary" id="btnCancelHabit" style="flex:0 0 auto;margin:0;width:auto;padding:10px 14px;" onclick="window._habitsCancel()">Отмена</button>
               </div>
             </div>
 
-            <button class="btn secondary" id="btnShowAddHabit" style="margin-top:10px;">+ Добавить привычку</button>
+            <button class="btn secondary" id="btnShowAddHabit" style="margin-top:10px;" onclick="window._habitsShowForm()">+ Добавить привычку</button>
             <div class="hint" id="habitsHint" style="margin-top:6px;"></div>
           </div>
         </section>
@@ -3015,7 +3015,7 @@
           </button>
           <button class="tabbtn" id="tabBtnHabits" data-tab="habits" title="Трекер Привычек"
             style="--tab-color:#F59E0B"
-            onclick="setTimeout(function(){if(window._initHabits)window._initHabits();},300);">
+            onclick="setTimeout(function(){if(window._initHabits)window._initHabits();},200);">
             <div class="tabPill" style="background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.28)"></div>
             <span class="tabIcon">✅</span>
             <div class="lbl">Привычки</div>
@@ -5286,251 +5286,277 @@
   }
   // ======== END WATER ========
 
-  // ======== HABITS ========
-  // ======== HABITS (rebuilt) ========
+  // ======== HABITS (Salebot-compatible: all handlers via inline onclick) ========
+  // All functions on window.* so inline onclick="window._habitsXxx()" works
   (function(){
-    const STORE_KEY = 'habits_defs_v2';
-    const LOGS_CACHE_KEY = 'habits_logs_cache_v2';
+    var STORE_KEY = 'habits_defs_v2';
+    var LOGS_CACHE_KEY = 'habits_logs_cache_v2';
+    var _addRem = {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
+    var _habitsStatus = {};
+    var DAY_LABELS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
 
-    /* ── localStorage helpers ── */
     function loadDefs(){
       try{
-        const v2 = JSON.parse(localStorage.getItem(STORE_KEY)||'null');
+        var v2 = JSON.parse(localStorage.getItem(STORE_KEY)||'null');
         if(v2) return v2;
-        // migrate from v1 if exists
-        const v1 = JSON.parse(localStorage.getItem('habits_defs_v1')||'null');
+        var v1 = JSON.parse(localStorage.getItem('habits_defs_v1')||'null');
         if(v1 && v1.length){ localStorage.setItem(STORE_KEY, JSON.stringify(v1)); return v1; }
         return [];
-      }catch{ return []; }
+      }catch(e){ return []; }
     }
     function saveDefs(arr){ localStorage.setItem(STORE_KEY, JSON.stringify(arr)); }
 
     function loadLogsCache(){
-      try{ return JSON.parse(localStorage.getItem(LOGS_CACHE_KEY)||'{}'); }catch{ return {}; }
+      try{ return JSON.parse(localStorage.getItem(LOGS_CACHE_KEY)||'{}'); }catch(e){ return {}; }
     }
-    function saveLogToCache(date, habit_id, value){
-      const c = loadLogsCache();
+    function saveLogToCache(date, hid, val){
+      var c = loadLogsCache();
       if(!c[date]) c[date] = {};
-      c[date][habit_id] = value;
-      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-7);
-      for(const d of Object.keys(c)){ if(new Date(d+'T00:00:00') < cutoff) delete c[d]; }
+      c[date][hid] = val;
+      var cutoff = new Date(); cutoff.setDate(cutoff.getDate()-7);
+      var keys = Object.keys(c);
+      for(var i=0;i<keys.length;i++){ if(new Date(keys[i]+'T00:00:00')<cutoff) delete c[keys[i]]; }
       localStorage.setItem(LOGS_CACHE_KEY, JSON.stringify(c));
     }
-    function removeLogFromCache(date, habit_id){
-      const c = loadLogsCache();
-      if(c[date]) delete c[date][habit_id];
+    function removeLogFromCache(date, hid){
+      var c = loadLogsCache();
+      if(c[date]) delete c[date][hid];
       localStorage.setItem(LOGS_CACHE_KEY, JSON.stringify(c));
     }
 
-    /* ── Date helpers (Europe/Moscow) ── */
     function todayStr(){
       return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow'}).format(new Date());
     }
     function prevDay(ds){
-      const d = new Date(ds+'T12:00:00'); d.setDate(d.getDate()-1);
+      var d = new Date(ds+'T12:00:00'); d.setDate(d.getDate()-1);
       return d.toISOString().slice(0,10);
     }
     function formatDateRu(ds){
-      const d = new Date(ds+'T12:00:00');
+      var d = new Date(ds+'T12:00:00');
       return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
     }
+    function esc(s){ var d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
-    /* ── Server communication ── */
-    async function loadLogs(){
-      const today = todayStr();
-      let serverLogs = [];
-      if(external_user_id){
-        try{
-          const r = await postForm(CONFIG.n8n.habits_get, {external_user_id});
-          serverLogs = r?.ok ? (r.logs||[]) : [];
-        }catch{ serverLogs = []; }
-      }
-      // merge local cache for today
-      const cache = loadLogsCache();
-      const todayCache = cache[today] || {};
-      const serverIds = new Set(serverLogs.filter(l=>l.date===today).map(l=>l.habit_id));
-      for(const [hid, val] of Object.entries(todayCache)){
-        if(!serverIds.has(hid)) serverLogs.push({habit_id:hid, date:today, value:val});
-      }
-      return serverLogs;
-    }
-
-    async function sendLog(habit_id, date, value){
-      if(String(value)==='0' || value===''){
-        removeLogFromCache(date, habit_id);
-      } else {
-        saveLogToCache(date, habit_id, String(value));
-      }
-      try{
-        await postForm(CONFIG.n8n.habits_log, {external_user_id, habit_id, date, value:String(value)});
-      }catch(e){ console.warn('habits_log err', e); }
-    }
-
-    /* ── Streak calculation ── */
     function calcStreak(dates){
       if(!dates.length) return 0;
-      const sorted = [...dates].sort((a,b)=>b.localeCompare(a));
-      const today = todayStr();
-      let streak = 0, cur = today;
-      for(const d of sorted){
-        if(d===cur){ streak++; cur=prevDay(cur); } else break;
+      var sorted = dates.slice().sort(function(a,b){return b.localeCompare(a);});
+      var today = todayStr();
+      var streak = 0, cur = today;
+      for(var i=0;i<sorted.length;i++){
+        if(sorted[i]===cur){ streak++; cur=prevDay(cur); } else break;
       }
       if(streak===0){
         cur = prevDay(today);
-        for(const d of sorted){
-          if(d===cur){ streak++; cur=prevDay(cur); } else break;
+        for(var j=0;j<sorted.length;j++){
+          if(sorted[j]===cur){ streak++; cur=prevDay(cur); } else break;
         }
       }
       return streak;
     }
 
-    /* ── Build status map from logs ── */
     function buildStatus(logs, today){
-      const m = {};
-      for(const l of logs){
+      var m = {};
+      for(var i=0;i<logs.length;i++){
+        var l = logs[i];
         if(!m[l.habit_id]) m[l.habit_id] = {doneToday:false, value:'', dates:[]};
-        const e = m[l.habit_id];
+        var e = m[l.habit_id];
         if(l.date===today && String(l.value)!=='0'){ e.doneToday=true; e.value=l.value; }
-        if(!e.dates.includes(l.date) && String(l.value)!=='0') e.dates.push(l.date);
+        if(e.dates.indexOf(l.date)===-1 && String(l.value)!=='0') e.dates.push(l.date);
       }
       return m;
     }
 
-    /* ── Render habit list ── */
+    async function loadLogs(){
+      var today = todayStr();
+      var serverLogs = [];
+      if(external_user_id){
+        try{
+          var r = await postForm(CONFIG.n8n.habits_get, {external_user_id:external_user_id});
+          serverLogs = (r && r.ok) ? (r.logs||[]) : [];
+        }catch(e){ serverLogs = []; }
+      }
+      var cache = loadLogsCache();
+      var todayCache = cache[today] || {};
+      var sIds = {};
+      for(var i=0;i<serverLogs.length;i++){
+        if(serverLogs[i].date===today) sIds[serverLogs[i].habit_id]=true;
+      }
+      var keys = Object.keys(todayCache);
+      for(var j=0;j<keys.length;j++){
+        if(!sIds[keys[j]]) serverLogs.push({habit_id:keys[j], date:today, value:todayCache[keys[j]]});
+      }
+      return serverLogs;
+    }
+
+    async function sendLog(hid, date, val){
+      if(String(val)==='0' || val===''){
+        removeLogFromCache(date, hid);
+      } else {
+        saveLogToCache(date, hid, String(val));
+      }
+      try{
+        await postForm(CONFIG.n8n.habits_log, {external_user_id:external_user_id, habit_id:hid, date:date, value:String(val)});
+      }catch(e){}
+    }
+
+    /* ── Render ── */
     function render(defs, status, today){
-      const list  = document.getElementById('habitsList');
-      const empty = document.getElementById('habitsEmpty');
-      const lbl   = document.getElementById('habitsDateLbl');
+      _habitsStatus = status;
+      var list  = document.getElementById('habitsList');
+      var empty = document.getElementById('habitsEmpty');
+      var lbl   = document.getElementById('habitsDateLbl');
       if(lbl) lbl.textContent = formatDateRu(today);
       if(!defs.length){ list.innerHTML=''; empty.style.display='block'; return; }
       empty.style.display='none';
-      list.innerHTML='';
-
-      for(const def of defs){
-        const st = status[def.id] || {doneToday:false, value:'', dates:[]};
-        const streak = calcStreak(st.dates);
-        const div = document.createElement('div');
-        div.className = 'habitItem';
-
-        const bellActive = def.reminder?.enabled ? ' bellActive' : '';
-        div.innerHTML = `
-          <button class="habitCheckBtn${st.doneToday?' done':''}" data-id="${def.id}" title="Отметить">✓</button>
-          <div class="habitInfo">
-            <div class="habitName">${esc(def.name)}</div>
-            <div class="habitStreak${streak>=3?' hot':''}">${streak>0 ? '🔥 '+streak+' дн. подряд' : 'Ещё нет серии'}</div>
-          </div>
-          <button class="habitBell${bellActive}" data-id="${def.id}" title="Напоминание" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;line-height:1;">🔔</button>
-          <button class="habitDel" data-id="${def.id}" title="Удалить">✕</button>`;
-
-        // check button handler
-        div.querySelector('.habitCheckBtn').onclick = async function(){
-          const wasDone = this.classList.contains('done');
-          const newVal = wasDone ? '0' : '1';
-          this.classList.toggle('done', !wasDone);
-          // update streak text immediately
-          st.doneToday = !wasDone;
-          st.value = newVal;
-          if(!wasDone && !st.dates.includes(today)) st.dates.push(today);
-          if(wasDone) st.dates = st.dates.filter(d=>d!==today);
-          const newStreak = calcStreak(st.dates);
-          const streakEl = this.closest('.habitItem').querySelector('.habitStreak');
-          streakEl.textContent = newStreak>0 ? '🔥 '+newStreak+' дн. подряд' : 'Ещё нет серии';
-          streakEl.classList.toggle('hot', newStreak>=3);
-          await sendLog(def.id, today, newVal);
-        };
-
-        // delete handler
-        div.querySelector('.habitDel').onclick = async function(){
-          if(!confirm('Удалить привычку «'+def.name+'»?')) return;
-          const defs2 = loadDefs().filter(d=>d.id!==def.id);
-          saveDefs(defs2);
-          if(external_user_id){
-            try{ await postForm(CONFIG.n8n.habit_def_delete, {external_user_id, habit_id:def.id}); }catch{}
-          }
-          await initHabits();
-        };
-
-        list.appendChild(div);
+      var html = '';
+      for(var i=0;i<defs.length;i++){
+        var def = defs[i];
+        var st = status[def.id] || {doneToday:false, value:'', dates:[]};
+        var streak = calcStreak(st.dates);
+        var doneClass = st.doneToday ? ' done' : '';
+        var hotClass = streak>=3 ? ' hot' : '';
+        var streakText = streak>0 ? '🔥 '+streak+' дн. подряд' : 'Ещё нет серии';
+        var bellClass = (def.reminder && def.reminder.enabled) ? ' bellActive' : '';
+        html += '<div class="habitItem">'
+          + '<button class="habitCheckBtn'+doneClass+'" onclick="window._habitsToggle(\''+def.id+'\')" style="touch-action:manipulation;">✓</button>'
+          + '<div class="habitInfo">'
+          + '<div class="habitName">'+esc(def.name)+'</div>'
+          + '<div class="habitStreak'+hotClass+'" id="streak_'+def.id+'">'+streakText+'</div>'
+          + '</div>'
+          + '<button class="habitBell'+bellClass+'" onclick="window._habitsBell(\''+def.id+'\')" style="background:none;border:none;font-size:18px;cursor:pointer;padding:4px;line-height:1;touch-action:manipulation;">🔔</button>'
+          + '<button class="habitDel" onclick="window._habitsDel(\''+def.id+'\')" style="touch-action:manipulation;">✕</button>'
+          + '</div>';
       }
+      list.innerHTML = html;
     }
 
-    // Escape HTML for XSS safety
-    function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+    /* ── Toggle check ── */
+    window._habitsToggle = async function(hid){
+      var today = todayStr();
+      var st = _habitsStatus[hid];
+      if(!st){ st = {doneToday:false, value:'', dates:[]}; _habitsStatus[hid]=st; }
+      var wasDone = st.doneToday;
+      var newVal = wasDone ? '0' : '1';
+      st.doneToday = !wasDone;
+      st.value = newVal;
+      if(!wasDone && st.dates.indexOf(today)===-1) st.dates.push(today);
+      if(wasDone){ var idx=st.dates.indexOf(today); if(idx!==-1) st.dates.splice(idx,1); }
+      // update UI
+      var btns = document.querySelectorAll('.habitCheckBtn');
+      for(var i=0;i<btns.length;i++){
+        var row = btns[i].closest('.habitItem');
+        if(btns[i].getAttribute('onclick').indexOf(hid)!==-1){
+          btns[i].classList.toggle('done', !wasDone);
+          var newStreak = calcStreak(st.dates);
+          var sel = row.querySelector('.habitStreak');
+          if(sel){
+            sel.textContent = newStreak>0 ? '🔥 '+newStreak+' дн. подряд' : 'Ещё нет серии';
+            sel.classList.toggle('hot', newStreak>=3);
+          }
+          break;
+        }
+      }
+      await sendLog(hid, today, newVal);
+    };
+
+    /* ── Delete ── */
+    window._habitsDel = async function(hid){
+      var defs = loadDefs();
+      var def = null;
+      for(var i=0;i<defs.length;i++){ if(defs[i].id===hid){ def=defs[i]; break; } }
+      var name = def ? def.name : 'привычку';
+      if(!confirm('Удалить «'+name+'»?')) return;
+      var newDefs = [];
+      for(var j=0;j<defs.length;j++){ if(defs[j].id!==hid) newDefs.push(defs[j]); }
+      saveDefs(newDefs);
+      if(external_user_id){
+        try{ await postForm(CONFIG.n8n.habit_def_delete, {external_user_id:external_user_id, habit_id:hid}); }catch(e){}
+      }
+      await window._initHabits();
+    };
+
+    /* ── Bell (reminder) for existing habit ── */
+    window._habitsBell = function(hid){
+      var def = null;
+      var defs = loadDefs();
+      for(var i=0;i<defs.length;i++){ if(defs[i].id===hid){ def=defs[i]; break; } }
+      if(!def) return;
+      openRemModal(def.name, def.reminder, async function(rem, hint){
+        var defs2 = loadDefs();
+        for(var k=0;k<defs2.length;k++){
+          if(defs2[k].id===hid){ defs2[k].reminder=rem; break; }
+        }
+        saveDefs(defs2);
+        if(external_user_id && rem.enabled){
+          try{
+            await postForm(CONFIG.n8n.habit_reminder_set, {
+              external_user_id:external_user_id,
+              chat_id:String((state.profile&&state.profile.chat_id)||external_user_id),
+              habit_id:hid, habit_name:def.name,
+              time:rem.time, days:rem.days.join(','),
+              before_min:String(rem.before), enabled:'1'
+            });
+            if(hint) hint.textContent='Напоминание сохранено!';
+          }catch(e){ if(hint) hint.textContent='Сохранено локально'; }
+        } else if(external_user_id){
+          try{ await postForm(CONFIG.n8n.habit_reminder_set,{external_user_id:external_user_id, habit_id:hid, enabled:'0'}); }catch(e){}
+          if(hint) hint.textContent='Напоминание выключено';
+        } else {
+          if(hint) hint.textContent = rem.enabled ? 'Сохранено' : 'Выключено';
+        }
+        setTimeout(closeRemModal, 1200);
+        await window._initHabits();
+      });
+    };
 
     /* ── Reminder modal ── */
-    const DAY_LABELS = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-    let _addRem = {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
-
     function openRemModal(habitName, initRem, onSave){
-      const rem   = initRem || {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
-      const modal = document.getElementById('remModal');
-      const sub   = document.getElementById('remModalSubtitle');
-      const body  = document.getElementById('remModalBody');
+      var rem = initRem || {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
+      var modal = document.getElementById('remModal');
+      var sub   = document.getElementById('remModalSubtitle');
+      var body  = document.getElementById('remModalBody');
       if(sub) sub.textContent = habitName || '';
 
-      body.innerHTML = `
-        <div class="remSwitchRow" id="remSwitchRow">
-          <div>
-            <div class="remSwitchLabel">Включить напоминание</div>
-            <div class="remSwitchDesc">Бот пришлёт сообщение в нужное время</div>
-          </div>
-          <div class="iosToggle${rem.enabled?' on':''}" id="remToggleBtn"><div class="iosToggleThumb"></div></div>
-        </div>
-        <div id="remSettings" style="display:${rem.enabled?'flex':'none'};flex-direction:column;gap:20px;">
-          <div class="remSection">
-            <div class="remSectionLbl">Время напоминания</div>
-            <input type="time" class="remTimeInp" id="remTimeInp" value="${rem.time||'08:00'}">
-          </div>
-          <div class="remSection">
-            <div class="remSectionLbl">Напомнить за</div>
-            <div class="remBefore">
-              ${[5,10,15,30].map(m=>`<button class="remBeforeBtn${(rem.before||10)===m?' sel':''}" data-before="${m}">${m} мин</button>`).join('')}
-            </div>
-          </div>
-          <div class="remSection">
-            <div class="remSectionLbl">Дни недели</div>
-            <div class="reminderDays">
-              ${DAY_LABELS.map((l,i)=>`<button class="rdBtn${(rem.days||[]).includes(i+1)?' sel':''}" data-day="${i+1}">${l}</button>`).join('')}
-            </div>
-          </div>
-          <button class="btn" id="remSaveBtn" style="width:100%;padding:15px;font-size:16px;font-weight:900;">Сохранить</button>
-          <div class="hint" id="remHint" style="text-align:center;"></div>
-        </div>`;
+      var beforeBtns = '';
+      var mins = [5,10,15,30];
+      for(var m=0;m<mins.length;m++){
+        beforeBtns += '<button class="remBeforeBtn'+((rem.before||10)===mins[m]?' sel':'')+'" data-before="'+mins[m]+'" onclick="var bs=this.parentNode.querySelectorAll(\'.remBeforeBtn\');for(var i=0;i<bs.length;i++)bs[i].classList.remove(\'sel\');this.classList.add(\'sel\');">'+mins[m]+' мин</button>';
+      }
+      var dayBtns = '';
+      for(var d=0;d<DAY_LABELS.length;d++){
+        var isSel = (rem.days||[]).indexOf(d+1)!==-1;
+        dayBtns += '<button class="rdBtn'+(isSel?' sel':'')+'" data-day="'+(d+1)+'" onclick="this.classList.toggle(\'sel\');">'+DAY_LABELS[d]+'</button>';
+      }
 
-      const toggleBtn = body.querySelector('#remToggleBtn');
-      const settings  = body.querySelector('#remSettings');
-      const switchRow = body.querySelector('#remSwitchRow');
+      body.innerHTML =
+        '<div class="remSwitchRow" onclick="var t=document.getElementById(\'remToggleBtn\');var on=!t.classList.contains(\'on\');t.classList.toggle(\'on\',on);document.getElementById(\'remSettings\').style.display=on?\'flex\':\'none\';">'
+        + '<div><div class="remSwitchLabel">Включить напоминание</div><div class="remSwitchDesc">Бот пришлёт сообщение в нужное время</div></div>'
+        + '<div class="iosToggle'+(rem.enabled?' on':'')+'" id="remToggleBtn"><div class="iosToggleThumb"></div></div>'
+        + '</div>'
+        + '<div id="remSettings" style="display:'+(rem.enabled?'flex':'none')+';flex-direction:column;gap:20px;">'
+        + '<div class="remSection"><div class="remSectionLbl">Время напоминания</div>'
+        + '<input type="time" class="remTimeInp" id="remTimeInp" value="'+(rem.time||'08:00')+'">'
+        + '</div>'
+        + '<div class="remSection"><div class="remSectionLbl">Напомнить за</div><div class="remBefore">'+beforeBtns+'</div></div>'
+        + '<div class="remSection"><div class="remSectionLbl">Дни недели</div><div class="reminderDays">'+dayBtns+'</div></div>'
+        + '<button class="btn" id="remSaveBtn" style="width:100%;padding:15px;font-size:16px;font-weight:900;" onclick="window._remSaveCb()">Сохранить</button>'
+        + '<div class="hint" id="remHint" style="text-align:center;"></div>'
+        + '</div>';
 
-      switchRow.onclick = () => {
-        const on = !toggleBtn.classList.contains('on');
-        toggleBtn.classList.toggle('on', on);
-        settings.style.display = on ? 'flex' : 'none';
-      };
-
-      body.querySelectorAll('.rdBtn').forEach(b => {
-        b.onclick = (e) => { e.stopPropagation(); b.classList.toggle('sel'); };
-      });
-      body.querySelectorAll('.remBeforeBtn').forEach(b => {
-        b.onclick = (e) => {
-          e.stopPropagation();
-          body.querySelectorAll('.remBeforeBtn').forEach(x=>x.classList.remove('sel'));
-          b.classList.add('sel');
-        };
-      });
-
-      body.querySelector('#remSaveBtn').onclick = async () => {
-        if(typeof vib==='function') vib();
-        const btn = body.querySelector('#remSaveBtn');
-        btn.disabled = true;
-        btn.textContent = 'Сохраняем...';
-        const enabled = toggleBtn.classList.contains('on');
-        const time    = body.querySelector('#remTimeInp')?.value || '08:00';
-        const days    = [...body.querySelectorAll('.rdBtn.sel')].map(b=>Number(b.dataset.day));
-        const before  = Number(body.querySelector('.remBeforeBtn.sel')?.dataset.before || 10);
-        const hint    = body.querySelector('#remHint');
-        await onSave({enabled, time, days, before}, hint);
-        btn.disabled = false;
-        btn.textContent = 'Сохранить';
+      // store callback for the save button
+      window._remSaveCb = async function(){
+        var btn = document.getElementById('remSaveBtn');
+        btn.disabled = true; btn.textContent = 'Сохраняем...';
+        var enabled = document.getElementById('remToggleBtn').classList.contains('on');
+        var time = (document.getElementById('remTimeInp')||{}).value || '08:00';
+        var dayEls = document.querySelectorAll('#remSettings .rdBtn.sel');
+        var days = [];
+        for(var i=0;i<dayEls.length;i++) days.push(Number(dayEls[i].getAttribute('data-day')));
+        var selBefore = document.querySelector('#remSettings .remBeforeBtn.sel');
+        var before = selBefore ? Number(selBefore.getAttribute('data-before')) : 10;
+        var hint = document.getElementById('remHint');
+        await onSave({enabled:enabled, time:time, days:days, before:before}, hint);
+        btn.disabled = false; btn.textContent = 'Сохранить';
       };
 
       modal.classList.add('open');
@@ -5540,218 +5566,149 @@
     function closeRemModal(){
       document.getElementById('remModal').classList.remove('open');
     }
-
-    window.openRemModal  = openRemModal;
     window._closeRemModal = closeRemModal;
+    window.openRemModal = openRemModal;
 
-    // Close modal buttons
-    document.getElementById('remModalClose').onclick = closeRemModal;
-    document.getElementById('remModal').addEventListener('click', e => {
-      if(e.target === document.getElementById('remModal')) closeRemModal();
-    });
+    /* ── Form buttons (called from inline onclick) ── */
+    window._habitsShowForm = function(){
+      document.getElementById('habitsAddForm').style.display = 'block';
+      document.getElementById('btnShowAddHabit').style.display = 'none';
+    };
 
-    /* ── Bell click on existing habit ── */
-    document.getElementById('habitsList').addEventListener('click', e => {
-      const bell = e.target.closest('.habitBell');
-      if(!bell) return;
-      const id  = bell.dataset.id;
-      const def = loadDefs().find(d=>d.id===id);
-      if(!def) return;
+    window._habitsCancel = function(){
+      document.getElementById('habitsAddForm').style.display = 'none';
+      document.getElementById('btnShowAddHabit').style.display = 'block';
+      document.getElementById('habitNameInp').value = '';
+      _addRem = {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
+      var t = document.getElementById('addRemToggle'); if(t) t.classList.remove('on');
+      var d = document.getElementById('addRemDesc'); if(d) d.textContent = 'Выключено';
+    };
 
-      openRemModal(def.name, def.reminder, async (rem, hint) => {
-        const defs = loadDefs();
-        const idx  = defs.findIndex(d=>d.id===id);
-        if(idx===-1) return;
-        defs[idx].reminder = rem;
-        saveDefs(defs);
-        const bellEl = document.querySelector('.habitBell[data-id="'+id+'"]');
-        if(bellEl) bellEl.classList.toggle('bellActive', rem.enabled);
-        if(external_user_id && rem.enabled){
-          try{
-            await postForm(CONFIG.n8n.habit_reminder_set, {
-              external_user_id,
-              chat_id: String(state.profile?.chat_id||external_user_id),
-              habit_id:id, habit_name:def.name,
-              time:rem.time, days:rem.days.join(','),
-              before_min:String(rem.before), enabled:'1'
-            });
-            if(hint) hint.textContent = 'Напоминание сохранено!';
-          }catch{ if(hint) hint.textContent = 'Сохранено локально'; }
-        } else if(external_user_id){
-          try{ await postForm(CONFIG.n8n.habit_reminder_set,{external_user_id, habit_id:id, enabled:'0'}); }catch{}
-          if(hint) hint.textContent = 'Напоминание выключено';
-        } else {
-          if(hint) hint.textContent = rem.enabled ? 'Сохранено' : 'Выключено';
-        }
-        setTimeout(closeRemModal, 1200);
-      });
-    });
-
-    /* ── Reminder toggle in add-form ── */
-    document.getElementById('addRemRow').addEventListener('click', () => {
+    window._habitsOpenRem = function(){
       if(typeof vib==='function') vib();
-      const name = document.getElementById('habitNameInp').value.trim() || 'Новая привычка';
-      openRemModal(name, _addRem, async (rem) => {
+      var name = (document.getElementById('habitNameInp').value||'').trim() || 'Новая привычка';
+      openRemModal(name, _addRem, async function(rem){
         _addRem = rem;
-        const t = document.getElementById('addRemToggle');
+        var t = document.getElementById('addRemToggle');
         if(t) t.classList.toggle('on', rem.enabled);
-        const desc = document.getElementById('addRemDesc');
+        var desc = document.getElementById('addRemDesc');
         if(desc) desc.textContent = rem.enabled
           ? rem.time+' · '+rem.days.length+' дн · за '+rem.before+' мин'
           : 'Выключено';
         closeRemModal();
       });
-    });
+    };
 
-    /* ── Init: load defs from server + localStorage ── */
-    async function initHabits(){
-      let defs = [];
+    window._habitsSave = async function(){
+      var nameInp = document.getElementById('habitNameInp');
+      var name = (nameInp.value||'').trim();
+      var hint = document.getElementById('habitsHint');
+      if(!name){ hint.textContent='Введи название привычки.'; return; }
+      hint.textContent = '';
+      var btn = document.getElementById('btnSaveHabit');
+      btn.disabled = true; btn.textContent = 'Сохраняем...';
+
+      var def = {
+        id: 'h_'+Date.now(),
+        name: name,
+        type: 'check',
+        reminder: _addRem.enabled ? {enabled:_addRem.enabled,time:_addRem.time,days:_addRem.days.slice(),before:_addRem.before} : null
+      };
+      var defs = loadDefs();
+      defs.push(def);
+      saveDefs(defs);
+
+      if(external_user_id){
+        try{ await postForm(CONFIG.n8n.habit_defs_save, {
+          external_user_id:external_user_id, habit_id:def.id, name:def.name, type:'check', target:'', unit:''
+        }); }catch(e){}
+      }
+      if(_addRem.enabled && external_user_id){
+        try{ await postForm(CONFIG.n8n.habit_reminder_set, {
+          external_user_id:external_user_id, chat_id:String((state.profile&&state.profile.chat_id)||external_user_id),
+          habit_id:def.id, habit_name:def.name,
+          time:_addRem.time, days:_addRem.days.join(','),
+          before_min:String(_addRem.before), enabled:'1'
+        }); }catch(e){}
+      }
+
+      _addRem = {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
+      btn.disabled = false; btn.textContent = 'Сохранить';
+      document.getElementById('habitsAddForm').style.display = 'none';
+      document.getElementById('btnShowAddHabit').style.display = 'block';
+      nameInp.value = '';
+      var t = document.getElementById('addRemToggle'); if(t) t.classList.remove('on');
+      var d = document.getElementById('addRemDesc'); if(d) d.textContent = 'Выключено';
+      await window._initHabits();
+    };
+
+    /* ── Init ── */
+    window._initHabits = async function(){
+      var defs = [];
       if(external_user_id){
         try{
-          const r = await postForm(CONFIG.n8n.habit_defs_get, {external_user_id});
-          let rawDefs = null;
-          if(r?.ok && Array.isArray(r.defs)) rawDefs = r.defs;
+          var r = await postForm(CONFIG.n8n.habit_defs_get, {external_user_id:external_user_id});
+          var rawDefs = null;
+          if(r && r.ok && Array.isArray(r.defs)) rawDefs = r.defs;
           else if(Array.isArray(r)) rawDefs = r;
-          else if(Array.isArray(r?.data)) rawDefs = r.data;
-          else if(Array.isArray(r?.rows)) rawDefs = r.rows;
-          else if(Array.isArray(r?.habits)) rawDefs = r.habits;
+          else if(r && Array.isArray(r.data)) rawDefs = r.data;
+          else if(r && Array.isArray(r.rows)) rawDefs = r.rows;
+          else if(r && Array.isArray(r.habits)) rawDefs = r.habits;
 
           if(rawDefs && rawDefs.length){
-            defs = rawDefs.map(d=>({
-              id:       d.id || d.habit_id || String(d.id),
-              name:     d.name || d.habit_name || d.title || 'Привычка',
-              type:     'check',
-              reminder: d.reminder || null,
-            }));
-            // merge local-only defs
-            const localDefs = loadDefs();
-            const serverIds = new Set(defs.map(d=>d.id));
-            const localOnly = localDefs.filter(d=>!serverIds.has(d.id));
-            if(localOnly.length){
-              defs = [...defs, ...localOnly];
-              for(const def of localOnly){
+            defs = [];
+            for(var i=0;i<rawDefs.length;i++){
+              var d = rawDefs[i];
+              defs.push({
+                id: d.id || d.habit_id || String(d.id),
+                name: d.name || d.habit_name || d.title || 'Привычка',
+                type: 'check',
+                reminder: d.reminder || null
+              });
+            }
+            var localDefs = loadDefs();
+            var serverIds = {};
+            for(var j=0;j<defs.length;j++) serverIds[defs[j].id]=true;
+            for(var k=0;k<localDefs.length;k++){
+              if(!serverIds[localDefs[k].id]){
+                defs.push(localDefs[k]);
                 try{ await postForm(CONFIG.n8n.habit_defs_save, {
-                  external_user_id, habit_id:def.id, name:def.name, type:'check', target:'', unit:''
-                }); }catch{}
+                  external_user_id:external_user_id, habit_id:localDefs[k].id, name:localDefs[k].name, type:'check', target:'', unit:''
+                }); }catch(e){}
               }
             }
             saveDefs(defs);
           } else {
-            // server empty — migrate localStorage to server
-            const localDefs = loadDefs();
-            if(localDefs.length){
-              defs = localDefs;
-              for(const def of localDefs){
+            var local = loadDefs();
+            if(local.length){
+              defs = local;
+              for(var n=0;n<local.length;n++){
                 try{ await postForm(CONFIG.n8n.habit_defs_save, {
-                  external_user_id, habit_id:def.id, name:def.name, type:'check', target:'', unit:''
-                }); }catch(e){ console.warn('migrate err', e); }
+                  external_user_id:external_user_id, habit_id:local[n].id, name:local[n].name, type:'check', target:'', unit:''
+                }); }catch(e){}
               }
             }
           }
         }catch(e){
-          console.warn('habits init err', e);
           defs = loadDefs();
         }
       } else {
         defs = loadDefs();
       }
-
-      const today  = todayStr();
-      const logs   = await loadLogs();
-      const status = buildStatus(logs, today);
+      var today  = todayStr();
+      var logs   = await loadLogs();
+      var status = buildStatus(logs, today);
       render(defs, status, today);
-    }
+    };
 
-    /* ── Bind UI buttons ── */
-    let _bound = false;
-    function bindUI(){
-      if(_bound) return;
-      _bound = true;
+    // Close reminder modal — inline onclick on the close button
+    var closeBtn = document.getElementById('remModalClose');
+    if(closeBtn) closeBtn.setAttribute('onclick','window._closeRemModal()');
+    var modalBg = document.getElementById('remModal');
+    if(modalBg) modalBg.setAttribute('onclick','if(event.target===this)window._closeRemModal()');
 
-      const $  = id => document.getElementById(id);
-      const on = (id, fn) => {
-        const el = $(id);
-        if(!el) return;
-        el.style.touchAction = 'manipulation';
-        el.addEventListener('click', fn);
-      };
-
-      on('btnShowAddHabit', () => {
-        $('habitsAddForm').style.display = 'block';
-        $('btnShowAddHabit').style.display = 'none';
-      });
-
-      on('btnCancelHabit', () => {
-        $('habitsAddForm').style.display = 'none';
-        $('btnShowAddHabit').style.display = 'block';
-        $('habitNameInp').value = '';
-        _addRem = {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
-        const t = $('addRemToggle'); if(t) t.classList.remove('on');
-        const d = $('addRemDesc');   if(d) d.textContent = 'Выключено';
-      });
-
-      on('btnSaveHabit', async () => {
-        const nameInp = $('habitNameInp');
-        const name = nameInp.value.trim();
-        const hint = $('habitsHint');
-        if(!name){ hint.textContent = 'Введи название привычки.'; return; }
-        hint.textContent = '';
-        const btn = $('btnSaveHabit');
-        btn.disabled = true;
-        btn.textContent = 'Сохраняем...';
-
-        const def = {
-          id:   'h_'+Date.now(),
-          name: name,
-          type: 'check',
-          reminder: _addRem.enabled ? {..._addRem} : null,
-        };
-        const defs = loadDefs();
-        defs.push(def);
-        saveDefs(defs);
-
-        if(external_user_id){
-          try{ await postForm(CONFIG.n8n.habit_defs_save, {
-            external_user_id, habit_id:def.id, name:def.name, type:'check', target:'', unit:''
-          }); }catch{}
-        }
-        if(_addRem.enabled && external_user_id){
-          try{ await postForm(CONFIG.n8n.habit_reminder_set, {
-            external_user_id, chat_id:String(state.profile?.chat_id||external_user_id),
-            habit_id:def.id, habit_name:def.name,
-            time:_addRem.time, days:_addRem.days.join(','),
-            before_min:String(_addRem.before), enabled:'1'
-          }); }catch{}
-        }
-
-        // reset form
-        _addRem = {enabled:false, time:'08:00', days:[1,2,3,4,5,6,7], before:10};
-        btn.disabled = false;
-        btn.textContent = 'Сохранить';
-        $('habitsAddForm').style.display = 'none';
-        $('btnShowAddHabit').style.display = 'block';
-        nameInp.value = '';
-        const t = $('addRemToggle'); if(t) t.classList.remove('on');
-        const d = $('addRemDesc');   if(d) d.textContent = 'Выключено';
-        await initHabits();
-      });
-    }
-
-    // Bind immediately
-    bindUI();
-
-    // Init on tab switch
-    document.addEventListener('click', e => {
-      const btn = e.target.closest('[data-tab="habits"]');
-      if(btn){ bindUI(); setTimeout(initHabits, 150); }
-    });
-    document.addEventListener('tabChanged', e => {
-      if(e.detail==='habits'){ bindUI(); initHabits(); }
-    });
-
-    // Init on load if user is known
-    setTimeout(() => { if(external_user_id) initHabits(); }, 600);
-    window._initHabits = initHabits;
+    // Auto-init
+    setTimeout(function(){ if(external_user_id) window._initHabits(); }, 600);
   })();
   // ======== END HABITS ========
 
