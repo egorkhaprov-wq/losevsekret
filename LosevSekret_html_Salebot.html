@@ -4523,6 +4523,290 @@
   setTimeout(() => { if(external_user_id) _hInit(); }, 600);
   // ======== END HABITS ========
 
+  // ======== WEIGHT ========
+  // Top-level — no IIFE, same pattern as Profile/Meals/Habits
+  async function loadWeightHistory(){
+    if(!external_user_id) return null;
+    try{ const r=await postForm(CONFIG.n8n.weight_get,{external_user_id}); return r?.ok?r:null; }catch{return null;}
+  }
+
+  function drawWeightChart(entries, profileWeight, targetWeight){
+    const svg=document.getElementById("weightChart"); if(!svg) return;
+    svg.innerHTML="";
+    const ns="http://www.w3.org/2000/svg";
+    const W=300,H=80,PX=10,PY=14;
+    const goalW = targetWeight ? Number(targetWeight) : null;
+    let pts = entries && entries.length ? [...entries] : [];
+    if(!pts.length && !profileWeight && !goalW){
+      svg.innerHTML='<text x="150" y="44" text-anchor="middle" fill="rgba(255,255,255,.2)" font-size="11" font-family="inherit">нет записей</text>';
+      return;
+    }
+    if(!pts.length && profileWeight) pts=[{weight_kg:profileWeight,date:""}];
+    const allVals = pts.map(e=>Number(e.weight_kg));
+    if(goalW) allVals.push(goalW);
+    const rawMn=Math.min(...allVals), rawMx=Math.max(...allVals);
+    const spread=Math.max(rawMx-rawMn,1);
+    const mn=rawMn-spread*0.35, mx=rawMx+spread*0.35;
+    const yS = v => PY+(H-PY*2)*(1-(v-mn)/(mx-mn));
+    const xOfI = i => pts.length>1 ? PX+i*(W-PX*2)/(pts.length-1) : W/2;
+    const defs=document.createElementNS(ns,"defs");
+    defs.innerHTML='<linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(120,160,255,.4)"/><stop offset="100%" stop-color="rgba(120,160,255,.04)"/></linearGradient>';
+    svg.appendChild(defs);
+    if(goalW){
+      const gy=yS(goalW);
+      const dl=document.createElementNS(ns,"line");
+      dl.setAttribute("x1",PX); dl.setAttribute("x2",W-PX);
+      dl.setAttribute("y1",gy); dl.setAttribute("y2",gy);
+      dl.setAttribute("stroke","rgba(80,220,180,.45)"); dl.setAttribute("stroke-width","1.5");
+      dl.setAttribute("stroke-dasharray","4 3");
+      svg.appendChild(dl);
+      const tg=document.createElementNS(ns,"text");
+      tg.setAttribute("x",W-PX-1); tg.setAttribute("y",gy-3);
+      tg.setAttribute("text-anchor","end"); tg.setAttribute("fill","rgba(80,220,180,.7)");
+      tg.setAttribute("font-size","8"); tg.setAttribute("font-family","inherit"); tg.setAttribute("font-weight","800");
+      tg.textContent="цель "+Number(goalW).toFixed(1);
+      svg.appendChild(tg);
+    }
+    const firstX=xOfI(0), lastX=xOfI(pts.length-1);
+    const linePts=pts.map((e,i)=>xOfI(i)+","+yS(Number(e.weight_kg)));
+    const aD="M"+linePts[0]+" "+linePts.slice(1).map(p=>"L"+p).join(" ")+" L"+lastX+","+H+" L"+firstX+","+H+" Z";
+    const area=document.createElementNS(ns,"path"); area.setAttribute("d",aD); area.setAttribute("fill","url(#wGrad)"); svg.appendChild(area);
+    const line=document.createElementNS(ns,"polyline"); line.setAttribute("points",linePts.join(" "));
+    line.setAttribute("fill","none"); line.setAttribute("stroke","rgba(120,160,255,.9)");
+    line.setAttribute("stroke-width","2"); line.setAttribute("stroke-linecap","round"); line.setAttribute("stroke-linejoin","round");
+    svg.appendChild(line);
+    pts.forEach((e,i)=>{
+      const cx=xOfI(i), cy=yS(Number(e.weight_kg)), isLast=i===pts.length-1, isFirst=i===0;
+      const dot=document.createElementNS(ns,"circle");
+      dot.setAttribute("cx",cx); dot.setAttribute("cy",cy);
+      dot.setAttribute("r",isLast?"4.5":"2.5");
+      dot.setAttribute("fill",isLast?"rgba(80,220,180,1)":"rgba(120,160,255,.55)");
+      if(isLast){dot.setAttribute("stroke","rgba(255,255,255,.4)"); dot.setAttribute("stroke-width","1.5");}
+      svg.appendChild(dot);
+      if(isLast||isFirst){
+        const t=document.createElementNS(ns,"text");
+        t.setAttribute("x",cx+(isFirst&&pts.length>1?2:0)); t.setAttribute("y",cy-7);
+        t.setAttribute("text-anchor",isLast&&pts.length>1?"end":"middle");
+        t.setAttribute("fill",isLast?"rgba(255,255,255,.8)":"rgba(255,255,255,.4)");
+        t.setAttribute("font-size","9"); t.setAttribute("font-family","inherit"); t.setAttribute("font-weight","800");
+        t.textContent=Number(e.weight_kg).toFixed(1);
+        svg.appendChild(t);
+      }
+    });
+    const mkLbl=(x,txt,anchor)=>{const t=document.createElementNS(ns,"text");t.setAttribute("x",x);t.setAttribute("y",H-1);t.setAttribute("text-anchor",anchor);t.setAttribute("fill","rgba(255,255,255,.2)");t.setAttribute("font-size","7.5");t.setAttribute("font-family","inherit");t.textContent=txt;svg.appendChild(t);};
+    mkLbl(PX,"Старт","start"); mkLbl(W-PX,"Финиш","end");
+  }
+
+  function setWeightUI(data,profile){
+    const entries=data?.entries||[];
+    const tw=profile?.target_weight?Number(profile.target_weight):null;
+    const profileW = profile?.weight_kg ? Number(profile.weight_kg) : null;
+    const l=entries.length?Number(entries[entries.length-1].weight_kg):null;
+    const wCur=document.getElementById("wCurrent"), wD=document.getElementById("wDelta"),
+          wG=document.getElementById("wGoal"),     wSt=document.getElementById("wStart"),
+          wIn=document.getElementById("wInput");
+    if(!wCur)return;
+    wCur.textContent=(l??profileW)!=null?(l??profileW).toFixed(1):"—";
+    if(wG) wG.textContent=tw!=null?tw.toFixed(1):"—";
+    if(wSt) wSt.textContent=profileW!=null?profileW.toFixed(1):"—";
+    if(wD){
+      if(l!=null&&profileW!=null){
+        const d=l-profileW; wD.textContent=(d>0?"+":"")+d.toFixed(1)+" кг";
+        wD.style.background=d<0?"rgba(79,224,122,.15)":d>0?"rgba(255,90,106,.15)":"rgba(255,255,255,.08)";
+        wD.style.color=d<0?"rgba(79,224,122,.95)":d>0?"rgba(255,90,106,.95)":"rgba(255,255,255,.5)";
+      } else { wD.textContent="нет данных"; }
+    }
+    if(wIn) wIn.placeholder=l!=null?l.toFixed(1)+" кг":"кг";
+    drawWeightChart(entries, profileW, tw);
+  }
+
+  async function refreshWeight(){
+    if(!state.profile)return;
+    const data=await loadWeightHistory();
+    setWeightUI(data,state.profile);
+  }
+
+  // Кнопка: Записать вес
+  el("btnLogWeight").addEventListener("click", async () => {
+    vib();
+    const inp=document.getElementById("wInput"), hint=document.getElementById("weightHint");
+    const val=parseFloat(String(inp.value||"").replace(",","."));
+    if(!val||val<30||val>300){ if(hint)hint.textContent="Введи вес от 30 до 300 кг."; return; }
+    if(hint)hint.textContent="";
+    showLoading(true,"Записываю вес…");
+    try{
+      const res=await postForm(CONFIG.n8n.weight_log,{external_user_id,weight_kg:val.toFixed(1)});
+      if(res?.ok){ vibOk(); inp.value=""; if(hint)hint.textContent="✅ Вес записан!"; await refreshWeight(); }
+      else{ vibBad(); if(hint)hint.textContent="Ошибка: "+(res?.error||"попробуй снова"); }
+    }catch(e){ vibBad(); if(hint)hint.textContent="Ошибка соединения."; }
+    finally{ showLoading(false); }
+  });
+  // ======== END WEIGHT ========
+
+  // ======== WATER ========
+  // Top-level — no IIFE, same pattern as Profile/Meals/Habits/Weight
+
+  function _wTodayStr(){
+    return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow'}).format(new Date());
+  }
+
+  function _wCalcGoal(){
+    const w = state.profile?.weight_kg ? Number(state.profile.weight_kg) : 0;
+    if(w >= 30) return Math.max(1500, Math.round(w * 30 / 250) * 250);
+    return 2000;
+  }
+
+  const _WATER_LS_KEY = 'water_cache_v1';
+
+  function _wGetCache(){
+    try{
+      const d = JSON.parse(localStorage.getItem(_WATER_LS_KEY)||'{}');
+      return d.date === _wTodayStr() ? Number(d.total_ml||0) : 0;
+    }catch{ return 0; }
+  }
+  function _wSetCache(total_ml){
+    try{ localStorage.setItem(_WATER_LS_KEY, JSON.stringify({date:_wTodayStr(),total_ml})); }catch{}
+  }
+
+  async function _wLoadWater(){
+    const cached = _wGetCache();
+    if(!external_user_id) return cached;
+    try{
+      const r = await postForm(CONFIG.n8n.water_get, {external_user_id, date: _wTodayStr()});
+      let server = null;
+      if(r?.ok && r.total_ml !== undefined) server = Number(r.total_ml || 0);
+      else if(r?.total_ml !== undefined) server = Number(r.total_ml || 0);
+      else if(Array.isArray(r) && r.length) server = Number(r[0].total_ml || 0);
+      else if(r?.data?.total_ml !== undefined) server = Number(r.data.total_ml || 0);
+      else if(r?.ok && typeof r.ok === 'boolean') server = 0;
+      if(server !== null){
+        const final = Math.max(cached, server);
+        _wSetCache(final);
+        return final;
+      }
+      return cached;
+    }catch{ return cached; }
+  }
+
+  async function _wSaveWater(total_ml){
+    _wSetCache(total_ml);
+    if(!external_user_id) return;
+    try{
+      await postForm(CONFIG.n8n.water_log, {
+        external_user_id, date: _wTodayStr(), total_ml: String(total_ml)
+      });
+    }catch(e){ console.warn('water_log error', e); }
+  }
+
+  const _GLASS_ML = 250;
+
+  function _wRender(total, goal){
+    const cur   = document.getElementById('waterCurrent');
+    const bar   = document.getElementById('waterBar');
+    const pct   = document.getElementById('waterPct');
+    const gLbl  = document.getElementById('waterGoalLbl');
+    const gNum  = document.getElementById('waterGoal');
+    const glDiv = document.getElementById('waterGlasses');
+    const dLbl  = document.getElementById('waterDateLbl');
+    if(!cur) return;
+    if(dLbl) dLbl.textContent = _wTodayStr();
+    cur.textContent = total;
+    if(gNum) gNum.textContent = goal;
+    if(gLbl) gLbl.textContent = goal + ' мл';
+    const p = Math.min(100, Math.round(total / goal * 100));
+    if(bar) bar.style.width = p + '%';
+    if(pct) pct.textContent = p + '%';
+    if(glDiv){
+      const count = Math.round(goal / 250);
+      const filled = Math.floor(total / 250);
+      glDiv.innerHTML = '';
+      for(let i = 0; i < count; i++){
+        const isFilled = i < filled;
+        const uid = 'g'+i+'x';
+        const w = document.createElement('div');
+        w.style.cssText = 'position:relative;width:30px;height:38px;flex-shrink:0;';
+        w.title = (i+1)*_GLASS_ML+' мл';
+        if(!isFilled){
+          w.innerHTML = `<svg viewBox="0 0 30 38" style="width:100%;height:100%;">
+            <path d="M3,2 L27,2 L25,36 L5,36 Z" fill="transparent"
+              stroke="rgba(255,255,255,.18)" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>`;
+        } else {
+          const spd = 1.4 + (i%3)*0.3;
+          w.innerHTML = `<svg viewBox="0 0 30 38" style="width:100%;height:100%;overflow:hidden;">
+            <defs>
+              <clipPath id="${uid}"><path d="M3,2 L27,2 L25,36 L5,36 Z"/></clipPath>
+              <linearGradient id="${uid}g" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(90,180,255,.75)"/>
+                <stop offset="100%" stop-color="rgba(30,110,255,.9)"/>
+              </linearGradient>
+            </defs>
+            <rect x="0" y="12" width="30" height="26" fill="url(#${uid}g)" clip-path="url(#${uid})"/>
+            <g clip-path="url(#${uid})">
+              <g style="animation:wvSlide ${spd}s linear infinite">
+                <path d="M0,12 Q7.5,8 15,12 Q22.5,16 30,12 Q37.5,8 45,12 Q52.5,16 60,12 L60,38 L0,38 Z"
+                  fill="rgba(140,215,255,.5)"/>
+              </g>
+            </g>
+            <rect x="7" y="16" width="3" height="12" rx="1.5" fill="rgba(255,255,255,.2)" clip-path="url(#${uid})"/>
+            <path d="M3,2 L27,2 L25,36 L5,36 Z" fill="none"
+              stroke="rgba(70,160,255,.8)" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>`;
+        }
+        glDiv.appendChild(w);
+      }
+    }
+  }
+
+  function _wGetPortion(){
+    const inp = document.getElementById('waterPortionInp');
+    const v = inp ? parseInt(inp.value) : 0;
+    return (v >= 50 && v <= 2000) ? v : 250;
+  }
+
+  async function _wAddWater(ml){
+    vib();
+    const goal = _wCalcGoal();
+    const cur = Number(document.getElementById('waterCurrent').textContent) || 0;
+    const newTotal = cur + ml;
+    _wRender(newTotal, goal);
+    await _wSaveWater(newTotal);
+    const hint = document.getElementById('waterHint');
+    if(newTotal >= goal){ if(hint) hint.textContent = '🎉 Дневная норма выполнена!'; vibOk(); }
+    else { if(hint) hint.textContent = '+' + ml + ' мл добавлено'; setTimeout(()=>{ if(hint) hint.textContent=''; }, 1500); }
+  }
+
+  // Кнопка: Добавить воду
+  el('btnWaterAdd').addEventListener('click', () => _wAddWater(_wGetPortion()));
+
+  // Быстрые ссылки
+  [['wq1',100],['wq2',200],['wq3',250],['wq4',500]].forEach(([id,ml])=>{
+    const el2 = document.getElementById(id);
+    if(el2) el2.addEventListener('click', ()=>{
+      const inp = document.getElementById('waterPortionInp');
+      if(inp){ inp.value = ml; inp.focus(); }
+    });
+  });
+
+  // Кнопка: Сброс воды
+  el('btnWaterReset').addEventListener('click', async () => {
+    vib();
+    if(!confirm('Сбросить воду за сегодня?')) return;
+    const goal = _wCalcGoal();
+    _wRender(0, goal);
+    await _wSaveWater(0);
+    const hint = document.getElementById('waterHint');
+    if(hint) hint.textContent = '';
+  });
+
+  async function refreshWater(){
+    if(!state.profile) return;
+    const goal = _wCalcGoal();
+    const total = await _wLoadWater();
+    _wRender(total, goal);
+  }
+  // ======== END WATER ========
+
   // ============================================================
   // WORKOUTS
   // ============================================================
@@ -5327,332 +5611,7 @@
     }catch(e){}
   })();
   // ---- END BG CHANGER ----
-  // ======== WEIGHT ========
-  async function loadWeightHistory(){
-    if(!external_user_id) return null;
-    try{ const r=await postForm(CONFIG.n8n.weight_get,{external_user_id}); return r?.ok?r:null; }catch{return null;}
-  }
-
-  function drawWeightChart(entries, profileWeight, targetWeight){
-    const svg=document.getElementById("weightChart"); if(!svg) return;
-    svg.innerHTML="";
-    const ns="http://www.w3.org/2000/svg";
-    const W=300,H=80,PX=10,PY=14;
-    const goalW = targetWeight ? Number(targetWeight) : null;
-
-    // Все точки логов (хронологически)
-    let pts = entries && entries.length ? [...entries] : [];
-    // Нет ни логов ни профиля — пусто
-    if(!pts.length && !profileWeight && !goalW){
-      svg.innerHTML='<text x="150" y="44" text-anchor="middle" fill="rgba(255,255,255,.2)" font-size="11" font-family="inherit">нет записей</text>';
-      return;
-    }
-    // Если нет логов — одна точка по весу профиля
-    if(!pts.length && profileWeight) pts=[{weight_kg:profileWeight,date:""}];
-
-    // Диапазон Y — включаем цель чтобы пунктир всегда был виден
-    const allVals = pts.map(e=>Number(e.weight_kg));
-    if(goalW) allVals.push(goalW);
-    const rawMn=Math.min(...allVals), rawMx=Math.max(...allVals);
-    const spread=Math.max(rawMx-rawMn,1);
-    const mn=rawMn-spread*0.35, mx=rawMx+spread*0.35;
-    const yS = v => PY+(H-PY*2)*(1-(v-mn)/(mx-mn));
-    const xOfI = i => pts.length>1 ? PX+i*(W-PX*2)/(pts.length-1) : W/2;
-
-    // defs градиент
-    const defs=document.createElementNS(ns,"defs");
-    defs.innerHTML='<linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(120,160,255,.4)"/><stop offset="100%" stop-color="rgba(120,160,255,.04)"/></linearGradient>';
-    svg.appendChild(defs);
-
-    // Пунктирная линия ЦЕЛИ
-    if(goalW){
-      const gy=yS(goalW);
-      const dl=document.createElementNS(ns,"line");
-      dl.setAttribute("x1",PX); dl.setAttribute("x2",W-PX);
-      dl.setAttribute("y1",gy); dl.setAttribute("y2",gy);
-      dl.setAttribute("stroke","rgba(80,220,180,.45)"); dl.setAttribute("stroke-width","1.5");
-      dl.setAttribute("stroke-dasharray","4 3");
-      svg.appendChild(dl);
-      const tg=document.createElementNS(ns,"text");
-      tg.setAttribute("x",W-PX-1); tg.setAttribute("y",gy-3);
-      tg.setAttribute("text-anchor","end"); tg.setAttribute("fill","rgba(80,220,180,.7)");
-      tg.setAttribute("font-size","8"); tg.setAttribute("font-family","inherit"); tg.setAttribute("font-weight","800");
-      tg.textContent="цель "+Number(goalW).toFixed(1);
-      svg.appendChild(tg);
-    }
-
-    // Заливка под линией
-    const firstX=xOfI(0), lastX=xOfI(pts.length-1);
-    const linePts=pts.map((e,i)=>xOfI(i)+","+yS(Number(e.weight_kg)));
-    const aD="M"+linePts[0]+" "+linePts.slice(1).map(p=>"L"+p).join(" ")+" L"+lastX+","+H+" L"+firstX+","+H+" Z";
-    const area=document.createElementNS(ns,"path"); area.setAttribute("d",aD); area.setAttribute("fill","url(#wGrad)"); svg.appendChild(area);
-
-    // Линия
-    const line=document.createElementNS(ns,"polyline"); line.setAttribute("points",linePts.join(" "));
-    line.setAttribute("fill","none"); line.setAttribute("stroke","rgba(120,160,255,.9)");
-    line.setAttribute("stroke-width","2"); line.setAttribute("stroke-linecap","round"); line.setAttribute("stroke-linejoin","round");
-    svg.appendChild(line);
-
-    // Все точки + подписи крайних
-    pts.forEach((e,i)=>{
-      const cx=xOfI(i), cy=yS(Number(e.weight_kg)), isLast=i===pts.length-1, isFirst=i===0;
-      const dot=document.createElementNS(ns,"circle");
-      dot.setAttribute("cx",cx); dot.setAttribute("cy",cy);
-      dot.setAttribute("r",isLast?"4.5":"2.5");
-      dot.setAttribute("fill",isLast?"rgba(80,220,180,1)":"rgba(120,160,255,.55)");
-      if(isLast){dot.setAttribute("stroke","rgba(255,255,255,.4)"); dot.setAttribute("stroke-width","1.5");}
-      svg.appendChild(dot);
-      if(isLast||isFirst){
-        const t=document.createElementNS(ns,"text");
-        t.setAttribute("x",cx+(isFirst&&pts.length>1?2:0)); t.setAttribute("y",cy-7);
-        t.setAttribute("text-anchor",isLast&&pts.length>1?"end":"middle");
-        t.setAttribute("fill",isLast?"rgba(255,255,255,.8)":"rgba(255,255,255,.4)");
-        t.setAttribute("font-size","9"); t.setAttribute("font-family","inherit"); t.setAttribute("font-weight","800");
-        t.textContent=Number(e.weight_kg).toFixed(1);
-        svg.appendChild(t);
-      }
-    });
-
-    // Метки «Старт» / «Финиш» снизу
-    const mkLbl=(x,txt,anchor)=>{const t=document.createElementNS(ns,"text");t.setAttribute("x",x);t.setAttribute("y",H-1);t.setAttribute("text-anchor",anchor);t.setAttribute("fill","rgba(255,255,255,.2)");t.setAttribute("font-size","7.5");t.setAttribute("font-family","inherit");t.textContent=txt;svg.appendChild(t);};
-    mkLbl(PX,"Старт","start"); mkLbl(W-PX,"Финиш","end");
-  }
-
-  function setWeightUI(data,profile){
-    const entries=data?.entries||[];
-    const tw=profile?.target_weight?Number(profile.target_weight):null;
-    // Старт — всегда вес из профиля
-    const profileW = profile?.weight_kg ? Number(profile.weight_kg) : null;
-    const l=entries.length?Number(entries[entries.length-1].weight_kg):null;
-    const wCur=document.getElementById("wCurrent"), wD=document.getElementById("wDelta"),
-          wG=document.getElementById("wGoal"),     wSt=document.getElementById("wStart"),
-          wIn=document.getElementById("wInput");
-    if(!wCur)return;
-    // Текущий вес — последняя запись, иначе вес профиля
-    wCur.textContent=(l??profileW)!=null?(l??profileW).toFixed(1):"—";
-    if(wG) wG.textContent=tw!=null?tw.toFixed(1):"—";
-    // Старт = вес из профиля
-    if(wSt) wSt.textContent=profileW!=null?profileW.toFixed(1):"—";
-    if(wD){
-      if(l!=null&&profileW!=null){
-        const d=l-profileW; wD.textContent=(d>0?"+":"")+d.toFixed(1)+" кг";
-        wD.style.background=d<0?"rgba(79,224,122,.15)":d>0?"rgba(255,90,106,.15)":"rgba(255,255,255,.08)";
-        wD.style.color=d<0?"rgba(79,224,122,.95)":d>0?"rgba(255,90,106,.95)":"rgba(255,255,255,.5)";
-      } else { wD.textContent="нет данных"; }
-    }
-    if(wIn) wIn.placeholder=l!=null?l.toFixed(1)+" кг":"кг";
-    drawWeightChart(entries, profileW, tw);
-  }
-
-  async function refreshWeight(){
-    if(!state.profile)return;
-    const data=await loadWeightHistory();
-    setWeightUI(data,state.profile);
-  }
-
-  (function(){
-    const btn=document.getElementById("btnLogWeight"); if(!btn)return;
-    btn.addEventListener("click",async()=>{
-      vib();
-      const inp=document.getElementById("wInput"), hint=document.getElementById("weightHint");
-      const val=parseFloat(String(inp.value||"").replace(",","."));
-      if(!val||val<30||val>300){ if(hint)hint.textContent="Введи вес от 30 до 300 кг."; return; }
-      if(hint)hint.textContent="";
-      showLoading(true,"Записываю вес…");
-      try{
-        const res=await postForm(CONFIG.n8n.weight_log,{external_user_id,weight_kg:val.toFixed(1)});
-        if(res?.ok){ vibOk(); inp.value=""; if(hint)hint.textContent="✅ Вес записан!"; await refreshWeight(); }
-        else{ vibBad(); if(hint)hint.textContent="Ошибка: "+(res?.error||"попробуй снова"); }
-      }catch(e){ vibBad(); if(hint)hint.textContent="Ошибка соединения."; }
-      finally{ showLoading(false); }
-    });
-  })();
-  // ======== END WEIGHT ========
-
-
-  // ======== WATER ========
-  (function(){
-
-    function todayStr(){
-      return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow'}).format(new Date());
-    }
-
-    // Цель: 30 мл * вес из профиля, минимум 1500, дефолт 2000
-    function calcGoal(){
-      const w = state.profile?.weight_kg ? Number(state.profile.weight_kg) : 0;
-      if(w >= 30) return Math.max(1500, Math.round(w * 30 / 250) * 250);
-      return 2000;
-    }
-
-    const WATER_LS_KEY = 'water_cache_v1';
-
-    function getWaterCache(){
-      try{
-        const d = JSON.parse(localStorage.getItem(WATER_LS_KEY)||'{}');
-        return d.date === todayStr() ? Number(d.total_ml||0) : 0;
-      }catch{ return 0; }
-    }
-    function setWaterCache(total_ml){
-      try{ localStorage.setItem(WATER_LS_KEY, JSON.stringify({date:todayStr(),total_ml})); }catch{}
-    }
-
-    async function loadWater(){
-      const cached = getWaterCache();
-      if(!external_user_id) return cached;
-      try{
-        const r = await postForm(CONFIG.n8n.water_get, {external_user_id, date: todayStr()});
-        // Поддержка нескольких форматов ответа от n8n
-        let server = null;
-        if(r?.ok && r.total_ml !== undefined) server = Number(r.total_ml || 0);
-        else if(r?.total_ml !== undefined) server = Number(r.total_ml || 0);
-        else if(Array.isArray(r) && r.length) server = Number(r[0].total_ml || 0);
-        else if(r?.data?.total_ml !== undefined) server = Number(r.data.total_ml || 0);
-        else if(r?.ok && typeof r.ok === 'boolean') server = 0;
-        if(server !== null){
-          const final = Math.max(cached, server);
-          setWaterCache(final);
-          return final;
-        }
-        return cached;
-      }catch{ return cached; }
-    }
-
-    async function saveWater(total_ml){
-      setWaterCache(total_ml);
-      if(!external_user_id) return;
-      try{
-        await postForm(CONFIG.n8n.water_log, {
-          external_user_id,
-          date: todayStr(),
-          total_ml: String(total_ml)
-        });
-      }catch(e){ console.warn('water_log error', e); }
-    }
-
-    const GLASS_ML = 250;
-
-    function renderWater(total, goal){
-      const cur   = document.getElementById('waterCurrent');
-      const bar   = document.getElementById('waterBar');
-      const pct   = document.getElementById('waterPct');
-      const gLbl  = document.getElementById('waterGoalLbl');
-      const gNum  = document.getElementById('waterGoal');
-      const glDiv = document.getElementById('waterGlasses');
-      const dLbl  = document.getElementById('waterDateLbl');
-      if(!cur) return;
-
-      if(dLbl) dLbl.textContent = todayStr();
-      cur.textContent = total;
-      if(gNum) gNum.textContent = goal;
-      if(gLbl) gLbl.textContent = goal + ' мл';
-
-      const p = Math.min(100, Math.round(total / goal * 100));
-      if(bar) bar.style.width = p + '%';
-      if(pct) pct.textContent = p + '%';
-
-      // стаканы SVG с волной
-      if(glDiv){
-        const count = Math.round(goal / 250);
-        const filled = Math.floor(total / 250);
-        glDiv.innerHTML = '';
-        for(let i = 0; i < count; i++){
-          const isFilled = i < filled;
-          const uid = 'g'+i+'x';
-          const w = document.createElement('div');
-          w.style.cssText = 'position:relative;width:30px;height:38px;flex-shrink:0;';
-          w.title = (i+1)*GLASS_ML+' мл';
-          if(!isFilled){
-            w.innerHTML = `<svg viewBox="0 0 30 38" style="width:100%;height:100%;">
-              <path d="M3,2 L27,2 L25,36 L5,36 Z" fill="transparent"
-                stroke="rgba(255,255,255,.18)" stroke-width="1.5" stroke-linejoin="round"/>
-            </svg>`;
-          } else {
-            const spd = 1.4 + (i%3)*0.3;
-            w.innerHTML = `<svg viewBox="0 0 30 38" style="width:100%;height:100%;overflow:hidden;">
-              <defs>
-                <clipPath id="${uid}"><path d="M3,2 L27,2 L25,36 L5,36 Z"/></clipPath>
-                <linearGradient id="${uid}g" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stop-color="rgba(90,180,255,.75)"/>
-                  <stop offset="100%" stop-color="rgba(30,110,255,.9)"/>
-                </linearGradient>
-              </defs>
-              <rect x="0" y="12" width="30" height="26" fill="url(#${uid}g)" clip-path="url(#${uid})"/>
-              <g clip-path="url(#${uid})">
-                <g style="animation:wvSlide ${spd}s linear infinite">
-                  <path d="M0,12 Q7.5,8 15,12 Q22.5,16 30,12 Q37.5,8 45,12 Q52.5,16 60,12 L60,38 L0,38 Z"
-                    fill="rgba(140,215,255,.5)"/>
-                </g>
-              </g>
-              <rect x="7" y="16" width="3" height="12" rx="1.5" fill="rgba(255,255,255,.2)" clip-path="url(#${uid})"/>
-              <path d="M3,2 L27,2 L25,36 L5,36 Z" fill="none"
-                stroke="rgba(70,160,255,.8)" stroke-width="1.5" stroke-linejoin="round"/>
-            </svg>`;
-          }
-          glDiv.appendChild(w);
-        }
-      }
-    }
-
-    function getPortion(){
-      const inp = document.getElementById('waterPortionInp');
-      const v = inp ? parseInt(inp.value) : 0;
-      return (v >= 50 && v <= 2000) ? v : 250;
-    }
-
-    async function addWater(ml){
-      vib();
-      const goal = calcGoal();
-      const cur = Number(document.getElementById('waterCurrent').textContent) || 0;
-      const newTotal = cur + ml;
-      renderWater(newTotal, goal);
-      await saveWater(newTotal);
-      const hint = document.getElementById('waterHint');
-      if(newTotal >= goal){ if(hint) hint.textContent = '🎉 Дневная норма выполнена!'; vibOk(); }
-      else { if(hint) hint.textContent = '+' + ml + ' мл добавлено'; setTimeout(()=>{ if(hint) hint.textContent=''; }, 1500); }
-    }
-
-    // Кнопка Добавить
-    document.getElementById('btnWaterAdd').addEventListener('click', () => addWater(getPortion()));
-
-    // Быстрые ссылки
-    [['wq1',100],['wq2',200],['wq3',250],['wq4',500]].forEach(([id,ml])=>{
-      const el2 = document.getElementById(id);
-      if(el2) el2.addEventListener('click', ()=>{
-        const inp = document.getElementById('waterPortionInp');
-        if(inp){ inp.value = ml; inp.focus(); }
-      });
-    });
-
-    // Кнопка сброса
-    document.getElementById('btnWaterReset').addEventListener('click', async () => {
-      vib();
-      if(!confirm('Сбросить воду за сегодня?')) return;
-      const goal = calcGoal();
-      renderWater(0, goal);
-      await saveWater(0);
-      const hint = document.getElementById('waterHint');
-      if(hint) hint.textContent = '';
-    });
-
-    // Публичная функция для refreshAll
-    window._refreshWater = async function(){
-      const goal = calcGoal();
-      const total = await loadWater();
-      renderWater(total, goal);
-    };
-    window._addWater = addWater;
-    window._saveWater = saveWater;
-    window.getPortion = getPortion;
-    window.addWater = addWater;
-  })();
-
-  async function refreshWater(){
-    if(!state.profile) return;
-    if(window._refreshWater) await window._refreshWater();
-  }
-  // ======== END WATER ========
-
-  // (habits moved earlier in script — before IIFEs)
+  // (weight, water, habits moved earlier in script — before IIFEs)
 
   // ======== NUTRITIONIST CHAT ========
   (function(){
