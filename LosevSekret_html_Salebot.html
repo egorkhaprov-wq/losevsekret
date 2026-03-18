@@ -4825,16 +4825,11 @@
       el("workoutsNoProgram").classList.add("hide");
 
       try{
-        const res = await fetch(CONFIG.n8n.workouts_get, {
-          method:"POST",
-          headers:{"Content-Type":"application/json","x-webhook-token":CONFIG.n8n.token},
-          body: JSON.stringify({
-            sex: prof.sex || "",
-            goal: prof.goal || "",
-            activity_level: String(prof.activity_level || "1.2")
-          })
+        const data = await postForm(CONFIG.n8n.workouts_get, {
+          sex: prof.sex || "",
+          goal: prof.goal || "",
+          activity_level: String(prof.activity_level || "1.2")
         });
-        const data = await res.json();
         el("workoutsLoading").classList.add("hide");
 
         if(!data.ok || !data.weeks?.length){
@@ -4873,12 +4868,7 @@
       el("workoutsWeekContent").innerHTML = `<div class="card" style="text-align:center;color:var(--muted);">Загрузка…</div>`;
 
       try{
-        const res = await fetch(CONFIG.n8n.week_get, {
-          method: "POST",
-          headers: {"Content-Type":"application/json","x-webhook-token":CONFIG.n8n.token},
-          body: JSON.stringify({ page_id: pageId })
-        });
-        const data = await res.json();
+        const data = await postForm(CONFIG.n8n.week_get, { page_id: pageId });
         renderWeekContent(data.groups || []);
       } catch(e){
         el("workoutsWeekContent").innerHTML = `<div class="card" style="text-align:center;">Ошибка загрузки</div>`;
