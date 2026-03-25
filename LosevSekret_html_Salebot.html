@@ -3541,38 +3541,13 @@
 
   // Навигация по датам убрана — аналитика и дневник всегда показывают сегодня
 
-  // ── Кеш профиля: TTL 5 минут ──
-  const PROFILE_CACHE_KEY = 'lf_profile_cache_v1';
-  const PROFILE_CACHE_TTL = 5 * 60 * 1000;
-
-  function getCachedProfile(){
-    try{
-      const c = JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY)||'null');
-      if(c && c.uid === external_user_id && (Date.now() - c.ts) < PROFILE_CACHE_TTL) return c.data;
-    }catch{}
-    return null;
-  }
-  function setCachedProfile(profile){
-    try{ localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({uid: external_user_id, ts: Date.now(), data: profile})); }catch{}
-  }
-
-  async function loadProfile(forceRefresh){
+  async function loadProfile(){
     if (!external_user_id) return null;
-    if(!forceRefresh){
-      const cached = getCachedProfile();
-      if(cached){
-        state.subscription_level = parseInt(cached.subscription_level || '0', 10);
-        state.subscription_until = String(cached.subscription_until || '');
-        state.role = String(cached.role || 'user');
-        return cached;
-      }
-    }
     const res = await postForm(CONFIG.n8n.profile_get, { external_user_id });
     if (res?.ok && res.found){
       state.subscription_level = parseInt(res.profile?.subscription_level || res.subscription_level || '0', 10);
       state.subscription_until = String(res.profile?.subscription_until || res.subscription_until || '');
       state.role = String(res.profile?.role || 'user');
-      setCachedProfile(res.profile);
       return res.profile;
     }
     return null;
@@ -3662,8 +3637,7 @@
       await postForm(CONFIG.n8n.profile_upsert, data);
       vibOk();
       await sleep(250);
-      try{ localStorage.removeItem(PROFILE_CACHE_KEY); }catch{}
-      state.profile = await loadProfile(true);
+      state.profile = await loadProfile();
       setProfileUI(state.profile);
       fillProfileForm(state.profile);
       enableTabs();
@@ -3684,35 +3658,12 @@
     fillProfileForm(state.profile);
   });
 
-  // ── Кеш daily: TTL 2 минуты ──
-  const DAILY_CACHE_KEY = 'lf_daily_cache_v1';
-  const DAILY_CACHE_TTL = 2 * 60 * 1000;
-
-  function getCachedDaily(dateStr){
-    try{
-      const c = JSON.parse(localStorage.getItem(DAILY_CACHE_KEY)||'null');
-      if(c && c.uid === external_user_id && c.date === dateStr && (Date.now() - c.ts) < DAILY_CACHE_TTL) return c.data;
-    }catch{}
-    return null;
-  }
-  function setCachedDaily(dateStr, d){
-    try{ localStorage.setItem(DAILY_CACHE_KEY, JSON.stringify({uid: external_user_id, date: dateStr, ts: Date.now(), data: d})); }catch{}
-  }
-  function invalidateDailyCache(){
-    try{ localStorage.removeItem(DAILY_CACHE_KEY); }catch{}
-  }
-
-  async function loadDaily(dateStr, forceRefresh){
+  async function loadDaily(dateStr){
     if (!external_user_id) return null;
-    if(!forceRefresh){
-      const cached = getCachedDaily(dateStr);
-      if(cached) return cached;
-    }
     const res = await postForm(CONFIG.n8n.daily_get, { external_user_id, local_date: dateStr });
     if (res?.ok) {
       const d = res.daily || {};
       d._meals = Array.isArray(res.meals) ? res.meals : [];
-      setCachedDaily(dateStr, d);
       return d;
     }
     return null;
@@ -4117,14 +4068,13 @@
   // в фоне ещё ~5-15 сек. Поэтому после submit поллим daily_get пока
   // meals_count не вырастет или last_meal_at не изменится.
   async function pollUntilNewMeal(prevCount, prevLastAt, maxMs){
-    invalidateDailyCache();
     const deadline = Date.now() + maxMs;
     let attempt = 0;
     while (Date.now() < deadline){
       await sleep(attempt === 0 ? 3000 : 2500);  // первый запрос через 3 сек
       attempt++;
       try{
-        const d = await loadDaily(state.dateD, true);
+        const d = await loadDaily(state.dateD);
         if (!d) continue;
         const newCount  = Number(d.meals_count || 0);
         const newLastAt = String(d.last_meal_at || "");
