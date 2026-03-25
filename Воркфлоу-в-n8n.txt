@@ -11271,36 +11271,7 @@
       "main": [
         [
           {
-            "node": "PG Rate Limit Check",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "PG Rate Limit Check": {
-      "main": [
-        [
-          {
-            "node": "IF Rate Limit OK",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF Rate Limit OK": {
-      "main": [
-        [
-          {
             "node": "PG Check Meal Exists",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Respond Rate Limit",
             "type": "main",
             "index": 0
           }
@@ -11398,7 +11369,7 @@
       "main": [
         [
           {
-            "node": "PG Text Cache Check",
+            "node": "Analyze text",
             "type": "main",
             "index": 0
           }
@@ -11406,46 +11377,6 @@
         [
           {
             "node": "TG Send",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "PG Text Cache Check": {
-      "main": [
-        [
-          {
-            "node": "IF Text Cache Hit",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "IF Text Cache Hit": {
-      "main": [
-        [
-          {
-            "node": "Format Cached Result",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Analyze text",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Format Cached Result": {
-      "main": [
-        [
-          {
-            "node": "Code in JavaScript",
             "type": "main",
             "index": 0
           }
