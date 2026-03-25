@@ -5597,8 +5597,8 @@
   // ---- END BG CHANGER ----
   // (weight, water, habits moved earlier in script — before IIFEs)
 
-  // ======== NUTRITIONIST CHAT ======== top-level, no IIFE
-  {
+  // ======== NUTRITIONIST CHAT ========
+  (function(){
   var CHAT_KEY = 'nutri_chat_v1';
     var pollingTimer = null;
     var lastTs = 0;
@@ -5795,11 +5795,11 @@
       if(b.id!=='tabBtnNutri') b.addEventListener('click', stopPolling);
     });
 
-  }
+  })();
   // ======== END NUTRITIONIST CHAT ========
 
-  // ======== SWIPE NAV ======== top-level, no IIFE
-  {
+  // ======== SWIPE NAV ========
+  (function(){
   const inner = document.getElementById('tabsInner');
     const track = document.getElementById('tabsTrack');
     if(!inner || !track) return;
@@ -5858,7 +5858,7 @@
       if(dx<0&&idx<vis.length-1) setActiveTab(vis[idx+1]);
       else if(dx>0&&idx>0) setActiveTab(vis[idx-1]);
     });
-  }
+  })();
   // ======== END SWIPE NAV ========
 
   // FORCE INIT HABITS удалён — все кнопки используют onclick атрибуты
