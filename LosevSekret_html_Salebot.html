@@ -3980,7 +3980,7 @@
     });
   }
 
-  async function compressImageToDataURL(file, maxSide=800, quality=0.70){
+  async function compressImageToDataURL(file, maxSide=1280, quality=0.82){
     const src = await readAsDataURL(file);
     const img = new Image();
     img.src = src;
@@ -4025,7 +4025,7 @@
 
       showLoading(true, "Готовлю фото…", "Сжимаю изображение для быстрой отправки");
       try{
-        const out = await compressImageToDataURL(f, 800, 0.70);
+        const out = await compressImageToDataURL(f, 1280, 0.82);
 
         // safety: ограничим размер data-url (чтобы не упереться в лимиты прокси/вебхука)
         if (out.dataUrl.length > 1400000){
@@ -5966,11 +5966,7 @@
         },
         body: body
       }).then(function(r){ return r.json(); }).then(function(r){
-        if(!r || !r.ok || !Array.isArray(r.messages) || !r.messages.length){
-          _chatPollDelay = Math.min(Math.round(_chatPollDelay * 1.5), 60000);
-          return;
-        }
-        _chatPollDelay = 5000;
+        if(!r || !r.ok || !Array.isArray(r.messages) || !r.messages.length) return;
         var cached = loadCache();
         var hasNew = false;
         r.messages.forEach(function(m){
@@ -5996,21 +5992,13 @@
       }).catch(function(){});
     }
 
-    var _chatPollDelay = 5000;
     function startPolling(){
       stopPolling();
-      _chatPollDelay = 5000;
-      _scheduleNextPoll();
+      doPoll();
+      pollingTimer = setInterval(doPoll, 20000);
     }
     function stopPolling(){
-      if(pollingTimer){ clearTimeout(pollingTimer); pollingTimer=null; }
-    }
-    function _scheduleNextPoll(){
-      stopPolling();
-      pollingTimer = setTimeout(function(){
-        doPoll();
-        _scheduleNextPoll();
-      }, _chatPollDelay);
+      if(pollingTimer){ clearInterval(pollingTimer); pollingTimer=null; }
     }
 
     function initChat(){
