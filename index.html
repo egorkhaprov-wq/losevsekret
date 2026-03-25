@@ -5455,7 +5455,7 @@
 
     // ════ ФИТНЕС-БРАСЛЕТЫ ════
   // ════ ФИТНЕС-БРАСЛЕТЫ ════ top-level
-  {
+  (function(){
     const notConnected   = document.getElementById('fitnessNotConnected');
     const connectedBlock = document.getElementById('fitnessConnectedBlock');
     const manualForm     = document.getElementById('fitnessManualForm');
@@ -5576,7 +5576,7 @@
       });
 
     loadFitnessStatus();
-  }
+  })();
 
   // Load saved bg on start
     try{
