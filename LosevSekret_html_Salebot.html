@@ -4169,16 +4169,19 @@
 
   // ── Rate-limit: макс 15 анализов еды в день ──
   const MEAL_LIMIT_PER_DAY = 15;
+  function _mealToday(){
+    return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow'}).format(new Date());
+  }
   function getMealCount(){
     try{
       const d = JSON.parse(localStorage.getItem('lf_meal_limit')||'{}');
-      if(d.date === todayStr()) return d.count || 0;
+      if(d.date === _mealToday()) return d.count || 0;
     }catch{}
     return 0;
   }
   function incMealCount(){
     const count = getMealCount() + 1;
-    try{ localStorage.setItem('lf_meal_limit', JSON.stringify({date: todayStr(), count})); }catch{}
+    try{ localStorage.setItem('lf_meal_limit', JSON.stringify({date: _mealToday(), count})); }catch{}
     return count;
   }
 
