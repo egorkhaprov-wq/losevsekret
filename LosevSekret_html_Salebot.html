@@ -4100,41 +4100,6 @@
     return false;
   }
 
-  // ── Dedup: предотвращаем повторную отправку одного и того же текста ──
-  const DEDUP_KEY = 'lf_meal_dedup_v1';
-  const DEDUP_TTL = 60 * 1000; // 60 секунд
-
-  function isDuplicateMeal(caption){
-    if(!caption) return false;
-    try{
-      const d = JSON.parse(localStorage.getItem(DEDUP_KEY)||'null');
-      if(d && d.text === caption && (Date.now() - d.ts) < DEDUP_TTL) return true;
-    }catch{}
-    return false;
-  }
-  function markMealSent(caption){
-    if(!caption) return;
-    try{ localStorage.setItem(DEDUP_KEY, JSON.stringify({text: caption, ts: Date.now()})); }catch{}
-  }
-
-  // ── Rate-limit: макс 15 анализов еды в день ──
-  const MEAL_LIMIT_PER_DAY = 15;
-  function _mealToday(){
-    return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow'}).format(new Date());
-  }
-  function getMealCount(){
-    try{
-      const d = JSON.parse(localStorage.getItem('lf_meal_limit')||'{}');
-      if(d.date === _mealToday()) return d.count || 0;
-    }catch{}
-    return 0;
-  }
-  function incMealCount(){
-    const count = getMealCount() + 1;
-    try{ localStorage.setItem('lf_meal_limit', JSON.stringify({date: _mealToday(), count})); }catch{}
-    return count;
-  }
-
   el("btnLogMeal").addEventListener("click", async () => {
     vib();
     const type = el("mealType").value;
@@ -4145,16 +4110,6 @@
     }
     if (!external_user_id){
       showLogHint("Нет external_user_id.", false);
-      vibBad();
-      return;
-    }
-    if (getMealCount() >= MEAL_LIMIT_PER_DAY){
-      showLogHint("Лимит анализов на сегодня (" + MEAL_LIMIT_PER_DAY + ") исчерпан. Попробуй завтра.", false);
-      vibBad();
-      return;
-    }
-    if (!mealPhotoState.data_url && isDuplicateMeal(caption)){
-      showLogHint("Этот приём уже отправлен. Подожди минуту или измени описание.", false);
       vibBad();
       return;
     }
@@ -4182,8 +4137,6 @@
       }, mealPhotoState.data_url ? 25000 : 12000);
 
       // n8n ответил "accepted" — теперь ждём пока он закончит обработку
-      incMealCount();
-      markMealSent(caption);
       showSheet(false);
       el("mealText").value = "";
       resetMealPhoto();
@@ -5999,29 +5952,6 @@
     }
 
     function doPoll(){
-      _pollDelay = _POLL_MIN;
-      _doPollAdaptive();
-    }
-
-    var _pollDelay = 5000;
-    var _POLL_MIN = 5000;
-    var _POLL_MAX = 60000;
-
-    function startPolling(){
-      stopPolling();
-      _pollDelay = _POLL_MIN;
-      _schedulePoll();
-    }
-    function stopPolling(){
-      if(pollingTimer){ clearTimeout(pollingTimer); pollingTimer=null; }
-    }
-    function _schedulePoll(){
-      stopPolling();
-      pollingTimer = setTimeout(function(){
-        _doPollAdaptive();
-      }, _pollDelay);
-    }
-    function _doPollAdaptive(){
       if(!external_user_id) return;
       var body = new URLSearchParams({
         token: CONFIG.n8n.token,
@@ -6037,13 +5967,10 @@
         body: body
       }).then(function(r){ return r.json(); }).then(function(r){
         if(!r || !r.ok || !Array.isArray(r.messages) || !r.messages.length){
-          // Нет новых сообщений — увеличиваем интервал
-          _pollDelay = Math.min(Math.round(_pollDelay * 1.5), _POLL_MAX);
-          _schedulePoll();
+          _chatPollDelay = Math.min(Math.round(_chatPollDelay * 1.5), 60000);
           return;
         }
-        // Есть новые сообщения — сбрасываем интервал на минимум
-        _pollDelay = _POLL_MIN;
+        _chatPollDelay = 5000;
         var cached = loadCache();
         var hasNew = false;
         r.messages.forEach(function(m){
@@ -6066,11 +5993,24 @@
             if(badge) badge.style.display='block';
           }
         }
-        _schedulePoll();
-      }).catch(function(){
-        _pollDelay = Math.min(Math.round(_pollDelay * 2), _POLL_MAX);
-        _schedulePoll();
-      });
+      }).catch(function(){});
+    }
+
+    var _chatPollDelay = 5000;
+    function startPolling(){
+      stopPolling();
+      _chatPollDelay = 5000;
+      _scheduleNextPoll();
+    }
+    function stopPolling(){
+      if(pollingTimer){ clearTimeout(pollingTimer); pollingTimer=null; }
+    }
+    function _scheduleNextPoll(){
+      stopPolling();
+      pollingTimer = setTimeout(function(){
+        doPoll();
+        _scheduleNextPoll();
+      }, _chatPollDelay);
     }
 
     function initChat(){
