@@ -3541,13 +3541,38 @@
 
   // Навигация по датам убрана — аналитика и дневник всегда показывают сегодня
 
-  async function loadProfile(){
+  // ── Кеш профиля: TTL 5 минут ──
+  const PROFILE_CACHE_KEY = 'lf_profile_cache_v1';
+  const PROFILE_CACHE_TTL = 5 * 60 * 1000;
+
+  function getCachedProfile(){
+    try{
+      const c = JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY)||'null');
+      if(c && c.uid === external_user_id && (Date.now() - c.ts) < PROFILE_CACHE_TTL) return c.data;
+    }catch{}
+    return null;
+  }
+  function setCachedProfile(profile){
+    try{ localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({uid: external_user_id, ts: Date.now(), data: profile})); }catch{}
+  }
+
+  async function loadProfile(forceRefresh){
     if (!external_user_id) return null;
+    if(!forceRefresh){
+      const cached = getCachedProfile();
+      if(cached){
+        state.subscription_level = parseInt(cached.subscription_level || '0', 10);
+        state.subscription_until = String(cached.subscription_until || '');
+        state.role = String(cached.role || 'user');
+        return cached;
+      }
+    }
     const res = await postForm(CONFIG.n8n.profile_get, { external_user_id });
     if (res?.ok && res.found){
       state.subscription_level = parseInt(res.profile?.subscription_level || res.subscription_level || '0', 10);
       state.subscription_until = String(res.profile?.subscription_until || res.subscription_until || '');
       state.role = String(res.profile?.role || 'user');
+      setCachedProfile(res.profile);
       return res.profile;
     }
     return null;
@@ -3637,7 +3662,8 @@
       await postForm(CONFIG.n8n.profile_upsert, data);
       vibOk();
       await sleep(250);
-      state.profile = await loadProfile();
+      try{ localStorage.removeItem(PROFILE_CACHE_KEY); }catch{}
+      state.profile = await loadProfile(true);
       setProfileUI(state.profile);
       fillProfileForm(state.profile);
       enableTabs();
@@ -3658,12 +3684,35 @@
     fillProfileForm(state.profile);
   });
 
-  async function loadDaily(dateStr){
+  // ── Кеш daily: TTL 2 минуты ──
+  const DAILY_CACHE_KEY = 'lf_daily_cache_v1';
+  const DAILY_CACHE_TTL = 2 * 60 * 1000;
+
+  function getCachedDaily(dateStr){
+    try{
+      const c = JSON.parse(localStorage.getItem(DAILY_CACHE_KEY)||'null');
+      if(c && c.uid === external_user_id && c.date === dateStr && (Date.now() - c.ts) < DAILY_CACHE_TTL) return c.data;
+    }catch{}
+    return null;
+  }
+  function setCachedDaily(dateStr, d){
+    try{ localStorage.setItem(DAILY_CACHE_KEY, JSON.stringify({uid: external_user_id, date: dateStr, ts: Date.now(), data: d})); }catch{}
+  }
+  function invalidateDailyCache(){
+    try{ localStorage.removeItem(DAILY_CACHE_KEY); }catch{}
+  }
+
+  async function loadDaily(dateStr, forceRefresh){
     if (!external_user_id) return null;
+    if(!forceRefresh){
+      const cached = getCachedDaily(dateStr);
+      if(cached) return cached;
+    }
     const res = await postForm(CONFIG.n8n.daily_get, { external_user_id, local_date: dateStr });
     if (res?.ok) {
       const d = res.daily || {};
       d._meals = Array.isArray(res.meals) ? res.meals : [];
+      setCachedDaily(dateStr, d);
       return d;
     }
     return null;
@@ -3980,7 +4029,7 @@
     });
   }
 
-  async function compressImageToDataURL(file, maxSide=1280, quality=0.82){
+  async function compressImageToDataURL(file, maxSide=800, quality=0.70){
     const src = await readAsDataURL(file);
     const img = new Image();
     img.src = src;
@@ -4025,7 +4074,7 @@
 
       showLoading(true, "Готовлю фото…", "Сжимаю изображение для быстрой отправки");
       try{
-        const out = await compressImageToDataURL(f, 1280, 0.82);
+        const out = await compressImageToDataURL(f, 800, 0.70);
 
         // safety: ограничим размер data-url (чтобы не упереться в лимиты прокси/вебхука)
         if (out.dataUrl.length > 1400000){
@@ -4068,13 +4117,14 @@
   // в фоне ещё ~5-15 сек. Поэтому после submit поллим daily_get пока
   // meals_count не вырастет или last_meal_at не изменится.
   async function pollUntilNewMeal(prevCount, prevLastAt, maxMs){
+    invalidateDailyCache();
     const deadline = Date.now() + maxMs;
     let attempt = 0;
     while (Date.now() < deadline){
       await sleep(attempt === 0 ? 3000 : 2500);  // первый запрос через 3 сек
       attempt++;
       try{
-        const d = await loadDaily(state.dateD);
+        const d = await loadDaily(state.dateD, true);
         if (!d) continue;
         const newCount  = Number(d.meals_count || 0);
         const newLastAt = String(d.last_meal_at || "");
@@ -4100,6 +4150,38 @@
     return false;
   }
 
+  // ── Dedup: предотвращаем повторную отправку одного и того же текста ──
+  const DEDUP_KEY = 'lf_meal_dedup_v1';
+  const DEDUP_TTL = 60 * 1000; // 60 секунд
+
+  function isDuplicateMeal(caption){
+    if(!caption) return false;
+    try{
+      const d = JSON.parse(localStorage.getItem(DEDUP_KEY)||'null');
+      if(d && d.text === caption && (Date.now() - d.ts) < DEDUP_TTL) return true;
+    }catch{}
+    return false;
+  }
+  function markMealSent(caption){
+    if(!caption) return;
+    try{ localStorage.setItem(DEDUP_KEY, JSON.stringify({text: caption, ts: Date.now()})); }catch{}
+  }
+
+  // ── Rate-limit: макс 15 анализов еды в день ──
+  const MEAL_LIMIT_PER_DAY = 15;
+  function getMealCount(){
+    try{
+      const d = JSON.parse(localStorage.getItem('lf_meal_limit')||'{}');
+      if(d.date === todayStr()) return d.count || 0;
+    }catch{}
+    return 0;
+  }
+  function incMealCount(){
+    const count = getMealCount() + 1;
+    try{ localStorage.setItem('lf_meal_limit', JSON.stringify({date: todayStr(), count})); }catch{}
+    return count;
+  }
+
   el("btnLogMeal").addEventListener("click", async () => {
     vib();
     const type = el("mealType").value;
@@ -4110,6 +4192,16 @@
     }
     if (!external_user_id){
       showLogHint("Нет external_user_id.", false);
+      vibBad();
+      return;
+    }
+    if (getMealCount() >= MEAL_LIMIT_PER_DAY){
+      showLogHint("Лимит анализов на сегодня (" + MEAL_LIMIT_PER_DAY + ") исчерпан. Попробуй завтра.", false);
+      vibBad();
+      return;
+    }
+    if (!mealPhotoState.data_url && isDuplicateMeal(caption)){
+      showLogHint("Этот приём уже отправлен. Подожди минуту или измени описание.", false);
       vibBad();
       return;
     }
@@ -4137,6 +4229,8 @@
       }, mealPhotoState.data_url ? 25000 : 12000);
 
       // n8n ответил "accepted" — теперь ждём пока он закончит обработку
+      incMealCount();
+      markMealSent(caption);
       showSheet(false);
       el("mealText").value = "";
       resetMealPhoto();
@@ -5952,6 +6046,29 @@
     }
 
     function doPoll(){
+      _pollDelay = _POLL_MIN;
+      _doPollAdaptive();
+    }
+
+    var _pollDelay = 5000;
+    var _POLL_MIN = 5000;
+    var _POLL_MAX = 60000;
+
+    function startPolling(){
+      stopPolling();
+      _pollDelay = _POLL_MIN;
+      _schedulePoll();
+    }
+    function stopPolling(){
+      if(pollingTimer){ clearTimeout(pollingTimer); pollingTimer=null; }
+    }
+    function _schedulePoll(){
+      stopPolling();
+      pollingTimer = setTimeout(function(){
+        _doPollAdaptive();
+      }, _pollDelay);
+    }
+    function _doPollAdaptive(){
       if(!external_user_id) return;
       var body = new URLSearchParams({
         token: CONFIG.n8n.token,
@@ -5966,7 +6083,14 @@
         },
         body: body
       }).then(function(r){ return r.json(); }).then(function(r){
-        if(!r || !r.ok || !Array.isArray(r.messages) || !r.messages.length) return;
+        if(!r || !r.ok || !Array.isArray(r.messages) || !r.messages.length){
+          // Нет новых сообщений — увеличиваем интервал
+          _pollDelay = Math.min(Math.round(_pollDelay * 1.5), _POLL_MAX);
+          _schedulePoll();
+          return;
+        }
+        // Есть новые сообщения — сбрасываем интервал на минимум
+        _pollDelay = _POLL_MIN;
         var cached = loadCache();
         var hasNew = false;
         r.messages.forEach(function(m){
@@ -5989,16 +6113,11 @@
             if(badge) badge.style.display='block';
           }
         }
-      }).catch(function(){});
-    }
-
-    function startPolling(){
-      stopPolling();
-      doPoll();
-      pollingTimer = setInterval(doPoll, 20000);
-    }
-    function stopPolling(){
-      if(pollingTimer){ clearInterval(pollingTimer); pollingTimer=null; }
+        _schedulePoll();
+      }).catch(function(){
+        _pollDelay = Math.min(Math.round(_pollDelay * 2), _POLL_MAX);
+        _schedulePoll();
+      });
     }
 
     function initChat(){
