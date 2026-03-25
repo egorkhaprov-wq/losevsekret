@@ -5408,9 +5408,9 @@
 
     // Только галерея
 
-    el("btnPickFile").addEventListener("click",()=>el("bgFileInput").click());
+    if(el("btnPickFile")) el("btnPickFile").addEventListener("click",()=>el("bgFileInput")?.click());
 
-    el("bgFileInput").addEventListener("change",()=>{
+    if(el("bgFileInput")) el("bgFileInput").addEventListener("change",()=>{
       const file = el("bgFileInput").files[0];
       if(!file) return;
       const reader = new FileReader();
@@ -5419,18 +5419,18 @@
     });
 
     let urlTimer;
-    el("bgUrlInput").addEventListener("input",()=>{
+    if(el("bgUrlInput")) el("bgUrlInput").addEventListener("input",()=>{
       clearTimeout(urlTimer);
       urlTimer = setTimeout(()=>showPreview(el("bgUrlInput").value.trim()), 600);
     });
 
-    el("bgDarkSlider").addEventListener("input",()=>{
+    if(el("bgDarkSlider")) el("bgDarkSlider").addEventListener("input",()=>{
       el("bgDarkVal").textContent = el("bgDarkSlider").value+"%";
       const url = el("bgFileInput")._data||"";
       if(url) applyBg(url, Number(el("bgDarkSlider").value));
     });
 
-    el("btnApplyBg").addEventListener("click",()=>{
+    if(el("btnApplyBg")) el("btnApplyBg").addEventListener("click",()=>{
       vib();
       const dark = Number(el("bgDarkSlider").value);
       const url = el("bgFileInput")._data||"";
@@ -5440,7 +5440,7 @@
       catch(e){ el("bgHint").textContent="✅ Фон применён (файл большой, не сохранён)."; }
     });
 
-    el("btnResetBg").addEventListener("click",()=>{
+    if(el("btnResetBg")) el("btnResetBg").addEventListener("click",()=>{
       vib();
       el("bgDarkSlider").value=65; el("bgDarkVal").textContent="65%";
       el("bgPreviewImg").classList.remove("show"); el("bgPreviewEmpty").classList.remove("hide");
