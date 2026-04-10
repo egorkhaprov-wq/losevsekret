@@ -149,8 +149,10 @@
         body,
         signal: ctrl.signal
       });
-      const json = await res.json().catch(()=> ({}));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      let json;
+      try{ json = JSON.parse(text); }catch{ throw new Error("invalid_json"); }
       if (json && (json.status === "forbidden" || (json.ok === false && json.status === "forbidden"))) {
         throw new Error("forbidden");
       }
@@ -384,15 +386,36 @@
 
   // Навигация по датам убрана — аналитика и дневник всегда показывают сегодня
 
+  function _applyProfile(profile){
+    state.subscription_level = parseInt(profile?.subscription_level || '0', 10);
+    state.subscription_until = String(profile?.subscription_until || '');
+    state.role = String(profile?.role || 'user');
+    try{ localStorage.setItem('lf_profile_fb', JSON.stringify({uid: external_user_id, data: profile})); }catch{}
+  }
+
+  function _getCachedProfileFallback(){
+    try{
+      const c = JSON.parse(localStorage.getItem('lf_profile_fb') || 'null');
+      if(c && c.uid === external_user_id && c.data) return c.data;
+    }catch{}
+    return null;
+  }
+
   async function loadProfile(){
     if (!external_user_id) return null;
-    const res = await postForm(CONFIG.n8n.profile_get, { external_user_id });
-    if (res?.ok && res.found){
-      state.subscription_level = parseInt(res.profile?.subscription_level || res.subscription_level || '0', 10);
-      state.subscription_until = String(res.profile?.subscription_until || res.subscription_until || '');
-      state.role = String(res.profile?.role || 'user');
-      return res.profile;
+    for(let attempt = 0; attempt < 2; attempt++){
+      try{
+        if(attempt > 0) await sleep(1500);
+        const res = await postForm(CONFIG.n8n.profile_get, { external_user_id });
+        if(res?.ok && res.found){
+          _applyProfile(res.profile);
+          return res.profile;
+        }
+        if(res?.ok && res.found === false) return null;
+      }catch(e){}
     }
+    const cached = _getCachedProfileFallback();
+    if(cached){ _applyProfile(cached); return cached; }
     return null;
   }
 
@@ -503,11 +526,16 @@
 
   async function loadDaily(dateStr){
     if (!external_user_id) return null;
-    const res = await postForm(CONFIG.n8n.daily_get, { external_user_id, local_date: dateStr });
-    if (res?.ok) {
-      const d = res.daily || {};
-      d._meals = Array.isArray(res.meals) ? res.meals : [];
-      return d;
+    for(let attempt = 0; attempt < 2; attempt++){
+      try{
+        if(attempt > 0) await sleep(1500);
+        const res = await postForm(CONFIG.n8n.daily_get, { external_user_id, local_date: dateStr });
+        if (res?.ok) {
+          const d = res.daily || {};
+          d._meals = Array.isArray(res.meals) ? res.meals : [];
+          return d;
+        }
+      }catch(e){}
     }
     return null;
   }
